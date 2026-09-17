@@ -42,7 +42,9 @@ def main() -> int:
     spec_cfg = config.get("verification", {}).get("spectral_consistency", {})
     ndvi_thresh = float(spec_cfg.get("ndvi_threshold", 0.05))
 
-    checkpoints_dir = root / config.get("paths", {}).get("outputs_dir", "outputs") / "checkpoints"
+    checkpoints_dir = root / config.get("paths", {}).get("checkpoints_dir", "checkpoints")
+    if not (checkpoints_dir / "ensemble_member_0.pth").exists():
+        checkpoints_dir = root / config.get("paths", {}).get("outputs_dir", "outputs") / "checkpoints"
     previews_dir = root / config.get("paths", {}).get("outputs_dir", "outputs") / "previews"
     previews_dir.mkdir(parents=True, exist_ok=True)
 

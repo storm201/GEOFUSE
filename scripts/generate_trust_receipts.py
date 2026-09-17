@@ -4,6 +4,7 @@ Executes complete pipeline across sample tiles, compiles machine-readable JSON T
 and writes them to outputs/receipts/.
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -32,7 +33,16 @@ from src.models.ensemble import load_ensemble_members, predict_ensemble
 from src.utils.config import get_device, get_project_root, load_config
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description="Generate auditable Trust Receipts for Sentinel-2 tiles.")
+    parser.add_argument(
+        "--tile",
+        type=str,
+        default=None,
+        help="Tile index or list of indices to evaluate (e.g. '12', '0,4,12,24', or 'all'). Default: benchmark tiles [0, 8, 16, 24].",
+    )
+    args = parser.parse_args(argv)
+
     print("=" * 86)
     print("        GeoFUSE SentinelGuard -- Phase 11: Auditable Trust Receipt Generation")
     print("=" * 86)
@@ -46,7 +56,9 @@ def main() -> int:
     receipts_dir = root / receipt_cfg.get("outputs_dir", "outputs/receipts")
     receipts_dir.mkdir(parents=True, exist_ok=True)
 
-    checkpoints_dir = root / config.get("paths", {}).get("outputs_dir", "outputs") / "checkpoints"
+    checkpoints_dir = root / config.get("paths", {}).get("checkpoints_dir", "checkpoints")
+    if not (checkpoints_dir / "ensemble_member_0.pth").exists():
+        checkpoints_dir = root / config.get("paths", {}).get("outputs_dir", "outputs") / "checkpoints"
     ckpt_paths = [
         checkpoints_dir / f"ensemble_member_{i}.pth" for i in range(3)
     ]
@@ -66,8 +78,21 @@ def main() -> int:
 
     patch_size = 128
     tiles = extract_tiles(stack, patch_size=patch_size, stride=96)
-    sample_indices = [0, len(tiles) // 3, (2 * len(tiles)) // 3, len(tiles) - 1]
-    print(f"      Selected {len(sample_indices)} geographically distinct test tiles.")
+    if args.tile is not None:
+        if args.tile.strip().lower() == "all":
+            sample_indices = list(range(len(tiles)))
+            print(f"      Selected all {len(sample_indices)} tiles in the complete scene.")
+        else:
+            try:
+                sample_indices = [int(x.strip()) for x in args.tile.split(",") if x.strip()]
+                sample_indices = [idx for idx in sample_indices if 0 <= idx < len(tiles)]
+                print(f"      Selected custom tile list ({len(sample_indices)} tiles): {sample_indices}")
+            except ValueError:
+                print(f"[Warning] Invalid tile argument '{args.tile}'. Using default benchmark samples.")
+                sample_indices = [0, len(tiles) // 3, (2 * len(tiles)) // 3, len(tiles) - 1]
+    else:
+        sample_indices = [0, len(tiles) // 3, (2 * len(tiles)) // 3, len(tiles) - 1]
+        print(f"      Selected {len(sample_indices)} geographically distinct test tiles.")
 
     pert_cfg = config.get("verification", {}).get("perturbation_test", {})
     noise_levels = pert_cfg.get("noise_levels", [0.01, 0.02, 0.05])
@@ -86,18 +111,23 @@ def main() -> int:
     receipt_paths = []
     has_low_trust_warning = False
 
+    scale_factor = float(config.get("model", {}).get("scale_factor", 2.5))
+
     for idx, t_idx in enumerate(sample_indices):
         hr_tile = tiles[t_idx]["data"]
         lr_tile = synthesize_pseudo_lr(
             hr_tile,
-            downsample_factor=2,
+            downsample_factor=scale_factor,
             blur_kernel_size=3,
             noise_std=0.01,
             seed=900 + idx,
         )
 
-        bicubic_tile = bicubic_upsample(lr_tile, scale_factor=2)
+        bicubic_tile = bicubic_upsample(lr_tile, scale_factor=scale_factor, target_shape=hr_tile.shape[:2])
         sr_tile, disagreement_map, _ = predict_ensemble(models, lr_tile, device=device)
+        if sr_tile.shape[:2] != hr_tile.shape[:2]:
+            sr_tile = cv2.resize(sr_tile, (hr_tile.shape[1], hr_tile.shape[0]), interpolation=cv2.INTER_CUBIC)
+            disagreement_map = cv2.resize(disagreement_map, (hr_tile.shape[1], hr_tile.shape[0]), interpolation=cv2.INTER_CUBIC)
 
         stability_map, _, _ = compute_stability_map(
             models=models,
@@ -174,14 +204,19 @@ def main() -> int:
         }
 
         receipt = generate_trust_receipt(
-            tile_idx=idx,
+            tile_idx=t_idx,
             raw_dir=raw_dir,
             config=config,
             pipeline_data=pipeline_data,
             min_trust_threshold=min_trust_threshold,
         )
 
-        out_file = receipts_dir / f"trust_receipt_sample_{idx}.json"
+        # Retain trust_receipt_sample_{idx}.json for benchmark samples, or trust_receipt_tile_{t_idx}.json for custom requests
+        if args.tile is not None and args.tile.strip().lower() != "all" and len(sample_indices) == 1:
+            out_file = receipts_dir / f"trust_receipt_tile_{t_idx}.json"
+        else:
+            out_file = receipts_dir / f"trust_receipt_sample_{idx}.json"
+
         save_trust_receipt(receipt, out_file)
         receipt_paths.append(out_file)
 
@@ -191,7 +226,7 @@ def main() -> int:
 
         status_str = "TRUSTED" if eval_status["is_trusted"] else "FLAGGED"
         print(
-            f"#{idx:<5} | "
+            f"#{t_idx:<5} | "
             f"{receipt['evidence_metrics']['fused_trust_score_pct']:<10.2f}% | "
             f"{eval_status['status']:<20} | "
             f"{status_str:<10} | "

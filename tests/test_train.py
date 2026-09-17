@@ -26,7 +26,7 @@ def test_sobel_gradient_loss():
 
 
 def test_compound_loss_components():
-    loss_fn = CompoundSRLoss(channels=4, grad_weight=0.1)
+    loss_fn = CompoundSRLoss(channels=4, grad_weight=0.1, fft_weight=0.0, lap_weight=0.0, var_weight=0.0)
     pred = torch.randn(2, 4, 32, 32, requires_grad=True)
     target = torch.randn(2, 4, 32, 32, requires_grad=False)
 

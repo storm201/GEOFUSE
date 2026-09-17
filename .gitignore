@@ -44,7 +44,10 @@ cover/
 # Environments & Virtual environments
 .env
 .envrc
+.env.*
 .venv
+.venv*
+.venv_gpu/
 env/
 venv/
 ENV/
@@ -59,35 +62,36 @@ venv.bak/
 .DS_Store
 Thumbs.db
 
-# Project-specific: Raw & Processed Satellite Data
+# Project-specific: Raw & Processed Satellite Data (large imagery files)
 data/raw/*
 !data/raw/.gitkeep
 data/interim/*
 !data/interim/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
-
-# Checkpoints & Weights
-checkpoints/*
-!checkpoints/.gitkeep
-*.pt
-*.pth
-*.onnx
-
-# Demo / runtime outputs & artifacts
-outputs/*
-!outputs/.gitkeep
-!outputs/receipts/
-!outputs/receipts/*.json
-!outputs/demo_cache/
-!outputs/demo_cache/*
-!outputs/presentation/
-!outputs/presentation/*
-cache/*
-!cache/.gitkeep
+data/additional_datasets/
 *.tif
 *.tiff
 *.geojson
+
+# Checkpoints & Weights (Ensemble models: 3 x ~3.86 MB)
+*.pt
+*.onnx
+checkpoints/*
+!checkpoints/.gitkeep
+!checkpoints/ensemble_member_*.pth
+!checkpoints/training_log_member_*.csv
+
+# Cache & Local runtime outputs
+cache/*
+!cache/.gitkeep
+outputs/*
+!outputs/.gitkeep
+
+# Local logs & Temporary files
+*.log
+*.tmp
+*.temp
 
 # Secrets and local configurations
 secrets.yaml

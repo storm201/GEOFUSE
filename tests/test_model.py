@@ -36,6 +36,24 @@ def test_model_forward_pass_shape():
     assert not torch.isinf(out_sr).any(), "Output contains Inf values"
 
 
+def test_model_fractional_forward_pass_shape():
+    """Verify that 2.5x fractional forward pass transforms (B, C, 64, 64) to (B, C, 160, 160)."""
+    model = ResidualSRNet(
+        in_channels=4,
+        out_channels=4,
+        num_features=48,
+        num_blocks=4,
+        scale_factor=2.5,
+    )
+    model.eval()
+    dummy_lr = torch.randn(2, 4, 64, 64)
+    with torch.no_grad():
+        out_sr = model(dummy_lr)
+    assert out_sr.shape == (2, 4, 160, 160)
+    assert not torch.isnan(out_sr).any()
+    assert not torch.isinf(out_sr).any()
+
+
 def test_model_parameter_count_budget():
     """Verify parameter count is under the ~1.5M hardware budget."""
     model = ResidualSRNet(

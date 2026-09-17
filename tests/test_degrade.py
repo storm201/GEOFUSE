@@ -24,6 +24,17 @@ def test_bicubic_downsample_and_upsample():
     assert recon.shape == (64, 64, 4)
 
 
+def test_bicubic_downsample_and_upsample_fractional():
+    # 160x160 patch downsampled by 2.5x -> 64x64
+    patch = np.random.uniform(0.1, 0.8, size=(160, 160, 4)).astype(np.float32)
+
+    lr = bicubic_downsample(patch, scale_factor=2.5)
+    assert lr.shape == (64, 64, 4)
+
+    recon = bicubic_upsample(lr, scale_factor=2.5, target_shape=(160, 160))
+    assert recon.shape == (160, 160, 4)
+
+
 def test_apply_sensor_blur():
     # Step edge image
     patch = np.zeros((32, 32, 4), dtype=np.float32)

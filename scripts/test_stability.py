@@ -138,7 +138,9 @@ def main() -> int:
     print(f"  Trials per Level      : {num_trials}")
 
     # Checkpoint paths
-    checkpoints_dir = root / config.get("paths", {}).get("outputs_dir", "outputs") / "checkpoints"
+    checkpoints_dir = root / config.get("paths", {}).get("checkpoints_dir", "checkpoints")
+    if not (checkpoints_dir / "ensemble_member_0.pth").exists():
+        checkpoints_dir = root / config.get("paths", {}).get("outputs_dir", "outputs") / "checkpoints"
     previews_dir = root / config.get("paths", {}).get("outputs_dir", "outputs") / "previews"
     ckpt_paths = [
         checkpoints_dir / "ensemble_member_0.pth",

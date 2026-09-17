@@ -38,6 +38,7 @@ def find_band_files(data_dir: Path, target_bands: List[str]) -> Dict[str, Path]:
     Raises:
         MissingBandError: If one or more target bands cannot be found.
     """
+    data_dir = Path(data_dir)
     found_bands: Dict[str, Path] = {}
     extensions = ("*.tif", "*.tiff", "*.TIF", "*.TIFF", "*.jp2")
 

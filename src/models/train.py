@@ -149,24 +149,29 @@ def train_single_member(
     epochs = epochs or int(config.get("training", {}).get("epochs", 15))
     batch_size = batch_size or int(config.get("training", {}).get("batch_size", 16))
     lr = float(config.get("training", {}).get("learning_rate", 0.0005))
-    patch_size_hr = 128
-    stride = 32
+    scale_factor = float(config.get("model", {}).get("scale_factor", 2.0))
+    downsample_factor = float(config.get("verification", {}).get("synthetic_degradation", {}).get("downsample_factor", scale_factor))
+    patch_size_hr = 160 if abs(scale_factor - 2.5) < 0.1 else 128
+    train_stride = 16
+    val_stride = 32
 
     # Datasets with member-specific seed for degradation/sampling variation
     train_ds = SentinelSRDataset(
         full_image=stack,
         patch_size_hr=patch_size_hr,
-        stride=stride,
+        stride=train_stride,
         split="train",
         val_quadrant=val_quadrant,
+        downsample_factor=downsample_factor,
         seed=seed,
     )
     val_ds = SentinelSRDataset(
         full_image=stack,
         patch_size_hr=patch_size_hr,
-        stride=stride,
+        stride=val_stride,
         split="val",
         val_quadrant=val_quadrant,
+        downsample_factor=downsample_factor,
         seed=seed + 100,
     )
 
@@ -177,9 +182,20 @@ def train_single_member(
 
     train_loader, val_loader = create_loaders(batch_size)
 
-    # Initialize model
+    # Initialize model with active residual gain and compound sharpness loss
     model = build_model(config).to(device)
-    criterion = CompoundSRLoss(channels=4, grad_weight=0.1).to(device)
+    loss_cfg = config.get("training", {}).get("loss_weights", {})
+    grad_weight = float(loss_cfg.get("grad_weight", 1.5))
+    fft_weight = float(loss_cfg.get("fft_weight", 0.5))
+    lap_weight = float(loss_cfg.get("lap_weight", 2.0))
+    var_weight = float(loss_cfg.get("var_weight", 1.0))
+    criterion = CompoundSRLoss(
+        channels=4,
+        grad_weight=grad_weight,
+        fft_weight=fft_weight,
+        lap_weight=lap_weight,
+        var_weight=var_weight,
+    ).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
     scaler = torch.amp.GradScaler("cuda", enabled=amp_enabled)
@@ -306,7 +322,19 @@ def train_ensemble(
         member_seeds = config.get("ensemble", {}).get("member_seeds", [42, 101, 2024])
 
     device = get_device(config)
-    checkpoints_dir = root / config.get("paths", {}).get("outputs_dir", "outputs") / "checkpoints"
+
+    # Enforce GPU training — abort if CUDA not available
+    if device.type != "cuda":
+        raise RuntimeError(
+            "\n[GPU REQUIRED] Training must run on GPU (CUDA). "
+            "CUDA is not available in this Python environment.\n"
+            "Please activate the GPU virtual environment:\n"
+            "  .venv_gpu\\Scripts\\activate\n"
+            "Then run: python src/models/train.py"
+        )
+    print(f"[GPU] Training on: {torch.cuda.get_device_name(device)}")
+    print(f"[GPU] VRAM: {torch.cuda.get_device_properties(device).total_memory // 1024**2} MiB")
+    checkpoints_dir = root / config.get("paths", {}).get("checkpoints_dir", "checkpoints")
     checkpoints_dir.mkdir(parents=True, exist_ok=True)
 
     raw_dir = root / config.get("paths", {}).get("raw_data_dir", "data/raw")

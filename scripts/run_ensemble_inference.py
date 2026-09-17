@@ -125,7 +125,9 @@ def run_ensemble_inference(
     config = load_config(config_path)
     device = get_device(config)
 
-    checkpoints_dir = root / config.get("paths", {}).get("outputs_dir", "outputs") / "checkpoints"
+    checkpoints_dir = root / config.get("paths", {}).get("checkpoints_dir", "checkpoints")
+    if not (checkpoints_dir / "ensemble_member_0.pth").exists():
+        checkpoints_dir = root / config.get("paths", {}).get("outputs_dir", "outputs") / "checkpoints"
     previews_dir = root / config.get("paths", {}).get("outputs_dir", "outputs") / "previews"
 
     # Identify ensemble member checkpoints

@@ -1,26 +1,44 @@
-"""Lightweight Residual CNN Super-Resolution Model for GeoFUSE SentinelGuard.
+"""Direct High-Frequency Super-Resolution Architecture for GeoFUSE SentinelGuard.
 
-Implements a streamlined, memory-efficient deep learning super-resolution network
-tailored for medium-resolution satellite imagery (Sentinel-2 L2A 4-band):
-- 4 to 6 residual blocks with local skip connections
-- 32 to 48 feature channels
-- Sub-pixel convolution (PixelShuffle) 2x upsampling head
-- Global residual learning via base upsampling bypass
-- Parameter budget: ~0.3M - 0.7M parameters (well under the 1.5M ceiling)
-- Zero GAN discriminators, attention modules, or heavy transformer blocks.
+Designed specifically for 4.0m resolution satellite super-resolution:
+- Multi-scale LR feature extraction (6 residual blocks with LeakyReLU)
+- Direct feature projection to target 4.0m spatial grid (no lossy bilinear downsampling)
+- High-frequency synthesis backbone (4 residual blocks operating directly at target 4.0m resolution)
+- Active residual gain parameter (res_gain) to synthesize true edge contrast (rooftops, roads)
+- Lightweight parameter budget: ~800K parameters (< 1.5M ceiling)
 """
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
-class ResidualBlock(nn.Module):
-    """Standard residual block with two 3x3 convolutions and LeakyReLU activation."""
+class ChannelAttention(nn.Module):
+    """Squeeze-and-Excitation channel attention for spectral band weighting."""
 
-    def __init__(self, channels: int, res_scale: float = 1.0) -> None:
+    def __init__(self, channels: int, reduction: int = 8) -> None:
+        super().__init__()
+        mid = max(1, channels // reduction)
+        self.gate = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(),
+            nn.Linear(channels, mid, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Linear(mid, channels, bias=False),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        w = self.gate(x).view(x.shape[0], x.shape[1], 1, 1)
+        return x * w
+
+
+class ResidualBlock(nn.Module):
+    """Residual block with two 3x3 convolutions, LeakyReLU and Channel Attention."""
+
+    def __init__(self, channels: int, res_scale: float = 0.2) -> None:
         super().__init__()
         self.res_scale = res_scale
         self.body = nn.Sequential(
@@ -28,92 +46,102 @@ class ResidualBlock(nn.Module):
             nn.LeakyReLU(negative_slope=0.2, inplace=True),
             nn.Conv2d(channels, channels, kernel_size=3, padding=1, bias=True),
         )
+        self.ca = ChannelAttention(channels)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return x + self.body(x) * self.res_scale
+        out = self.ca(self.body(x))
+        return x + out * self.res_scale
 
 
 class ResidualSRNet(nn.Module):
-    """Lightweight Residual Super-Resolution Network for Multi-Band Satellite Data.
+    """Direct 4.0m Multi-Spectral Super-Resolution Network.
 
     Args:
-        in_channels: Number of input spectral bands (e.g. 4 for B02, B03, B04, B08).
+        in_channels: Number of input spectral bands (4 for B02, B03, B04, B08).
         out_channels: Number of output spectral bands (matches in_channels).
-        num_features: Intermediate feature representation depth (32 to 48).
-        num_blocks: Number of chained residual blocks (4 to 6).
-        scale_factor: Spatial upsampling factor (default: 2).
-        res_scale: Residual scaling factor for numerical stability.
+        num_features: Intermediate feature depth (default: 64).
+        scale_factor: Spatial upsampling factor (2.5 for 4.0m GSD from Sentinel-2 10m).
     """
 
     def __init__(
         self,
         in_channels: int = 4,
         out_channels: int = 4,
-        num_features: int = 48,
+        num_features: int = 64,
         num_blocks: int = 6,
-        scale_factor: int = 2,
-        res_scale: float = 0.1,
+        scale_factor: Union[int, float] = 2.5,
+        res_scale: float = 0.2,
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.scale_factor = scale_factor
+        self.scale_factor = float(scale_factor)
 
-        # 1. Shallow Feature Extraction Head
-        self.head = nn.Conv2d(in_channels, num_features, kernel_size=3, padding=1, bias=True)
-
-        # 2. Deep Residual Backbone
-        self.body = nn.Sequential(
-            *[ResidualBlock(channels=num_features, res_scale=res_scale) for _ in range(num_blocks)]
-        )
-
-        # 3. Mid-Feature Trunk Conv (Global Feature Integration)
-        self.trunk = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1, bias=True)
-
-        # 4. Pixel-Shuffle Sub-Pixel Convolution Upsampling Head
-        self.upsample = nn.Sequential(
-            nn.Conv2d(
-                num_features,
-                num_features * (scale_factor ** 2),
-                kernel_size=3,
-                padding=1,
-                bias=True,
-            ),
-            nn.PixelShuffle(scale_factor),
+        # 1. LR Feature Extraction Head
+        self.head = nn.Sequential(
+            nn.Conv2d(in_channels, num_features, kernel_size=3, padding=1, bias=True),
             nn.LeakyReLU(negative_slope=0.2, inplace=True),
         )
 
-        # 5. Final Reconstruction Layer
-        self.tail = nn.Conv2d(num_features, out_channels, kernel_size=3, padding=1, bias=True)
+        # 2. LR Deep Contextual Backbone
+        self.lr_blocks = nn.Sequential(
+            *[ResidualBlock(channels=num_features, res_scale=res_scale) for _ in range(num_blocks)]
+        )
+        self.lr_trunk = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1, bias=True)
+
+        # 3. Target Grid High-Resolution Synthesis Backbone (Operates directly at 4.0m GSD)
+        self.hr_blocks = nn.Sequential(
+            *[ResidualBlock(channels=num_features, res_scale=res_scale) for _ in range(4)]
+        )
+
+        # 4. Multi-Scale Detail Reconstruction Head
+        self.tail = nn.Sequential(
+            nn.Conv2d(num_features, num_features // 2, kernel_size=3, padding=1, bias=True),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            nn.Conv2d(num_features // 2, out_channels, kernel_size=3, padding=1, bias=True),
+        )
+
+        # 5. Learnable residual amplification gain (initialized to 1.5 to recover crisp edge transitions)
+        self.res_gain = nn.Parameter(torch.tensor(1.5, dtype=torch.float32))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass.
 
         Args:
-            x: Input tensor of shape (Batch, in_channels, H, W).
+            x: Input tensor of shape (Batch, Channels, H, W).
 
         Returns:
-            torch.Tensor: Super-resolved tensor of shape (Batch, out_channels, H * scale, W * scale).
+            torch.Tensor: Super-resolved tensor of shape (Batch, Channels, H * scale, W * scale).
         """
-        # Global base skip connection (bicubic interpolation of input)
+        target_h = int(round(x.shape[2] * self.scale_factor))
+        target_w = int(round(x.shape[3] * self.scale_factor))
+
+        # Base interpolation provides smooth photometric baseline
         base = F.interpolate(
             x,
-            scale_factor=float(self.scale_factor),
+            size=(target_h, target_w),
             mode="bicubic",
             align_corners=False,
         )
 
-        # Feature extraction & residual learning
+        # Low-resolution feature extraction
         f_init = self.head(x)
-        f_res = self.body(f_init)
-        f_trunk = self.trunk(f_res) + f_init
+        f_lr = self.lr_trunk(self.lr_blocks(f_init)) + f_init
 
-        # PixelShuffle upsampling
-        f_up = self.upsample(f_trunk)
-        residual_hr = self.tail(f_up)
+        # Project feature representation to target 4.0m spatial grid
+        f_hr = F.interpolate(
+            f_lr,
+            size=(target_h, target_w),
+            mode="bicubic",
+            align_corners=False,
+        )
 
-        # Reconstructed HR = Interpolated Base + Learned High-Frequency Detail
-        out = base + residual_hr
+        # High-frequency edge and texture synthesis directly at 4.0m resolution
+        f_sharp = self.hr_blocks(f_hr)
+        residual_hr = self.tail(f_sharp)
+
+        # Reconstructed HR = Base + Amplified High-Frequency Detail
+        out = base + residual_hr * self.res_gain
         return out
 
 
@@ -123,25 +151,16 @@ def count_parameters(model: nn.Module) -> int:
 
 
 def build_model(config: Optional[Dict[str, Any]] = None) -> ResidualSRNet:
-    """Factory function to instantiate ResidualSRNet from project config.yaml.
+    """Factory function to instantiate ResidualSRNet from project config.yaml."""
+    if config is None:
+        return ResidualSRNet()
 
-    Args:
-        config: Optional configuration dictionary. If None, default settings are used.
-
-    Returns:
-        ResidualSRNet: Instantiated model.
-    """
-    model_cfg = config.get("model", {}) if config else {}
-    in_channels = int(model_cfg.get("num_channels", 4))
-    num_features = int(model_cfg.get("num_features", 48))
-    scale_factor = int(model_cfg.get("scale_factor", 2))
-    num_blocks = int(model_cfg.get("num_residual_blocks", 6))
-
-    model = ResidualSRNet(
-        in_channels=in_channels,
-        out_channels=in_channels,
-        num_features=num_features,
-        num_blocks=num_blocks,
-        scale_factor=scale_factor,
+    model_cfg = config.get("model", {})
+    return ResidualSRNet(
+        in_channels=model_cfg.get("num_channels", 4),
+        out_channels=model_cfg.get("num_channels", 4),
+        num_features=model_cfg.get("num_features", 64),
+        num_blocks=model_cfg.get("num_residual_blocks", 6),
+        scale_factor=model_cfg.get("scale_factor", 2.5),
+        res_scale=model_cfg.get("res_scale", 0.2),
     )
-    return model

@@ -58,7 +58,24 @@ python scripts/inspect_sentinel2.py
 
 ---
 
-## 5. Access Limitations & Licensing
+## 5. Additional Datasets (`data/additional_datasets/`)
+
+To support multi-landscape generalizability and seasonal drift testing, 3 additional 4-band scenes (512x512 pixels each) are available in `data/additional_datasets/`:
+
+| Directory | Landscape Description | Acquisition Date | Scene ID | Crop Window |
+| :--- | :--- | :---: | :--- | :--- |
+| `urban_core/` | High-Density Built-Up Urban Core & Roads | 2024-02-27 | `S2A_T43PGQ_20240227T052054_L2A` | `col=3500, row=3500` |
+| `agriculture/` | Intensive Agricultural Farmland & Canals | 2024-02-27 | `S2A_T43PGQ_20240227T052054_L2A` | `col=7500, row=4500` |
+| `temporal_april2024/` | Dry Season Shift (Same Coordinates, +2 Months) | 2024-04-27 | `S2A_T43PGQ_20240427T051439_L2A` | `col=5000, row=5000` |
+
+To re-fetch all additional datasets at any time:
+```bash
+python scripts/download_additional_datasets.py
+```
+
+---
+
+## 6. Access Limitations & Licensing
 
 - **Authentication / API Keys**: None required. Data is streamed directly via HTTPS from the publicly accessible AWS Open Data Registry.
 - **License**: Copernicus Sentinel Data is governed by the **Copernicus Open Access Policy**:

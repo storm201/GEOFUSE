@@ -66,7 +66,9 @@ def precompute_demo_assets(output_dir: Optional[Path] = None) -> Dict[str, Any]:
     }
 
     # 3. Load ensemble models
-    checkpoints_dir = root / config.get("paths", {}).get("outputs_dir", "outputs") / "checkpoints"
+    checkpoints_dir = root / config.get("paths", {}).get("checkpoints_dir", "checkpoints")
+    if not (checkpoints_dir / "ensemble_member_0.pth").exists():
+        checkpoints_dir = root / config.get("paths", {}).get("outputs_dir", "outputs") / "checkpoints"
     ckpt_paths = [checkpoints_dir / f"ensemble_member_{i}.pth" for i in range(3)]
     print(f"Loading {len(ckpt_paths)} ensemble models onto {device}...")
     models = load_ensemble_members(ckpt_paths, config=config, device=device)
@@ -90,19 +92,31 @@ def precompute_demo_assets(output_dir: Optional[Path] = None) -> Dict[str, Any]:
     print(f"   Precomputing & Caching Demo Assets for {len(sample_indices)} Tiles")
     print("=" * 80)
 
+    scale_factor = float(config.get("model", {}).get("scale_factor", 2.5))
+
     for order_idx, t_idx in enumerate(sample_indices):
         print(f"\nProcessing Tile #{t_idx} ({tile_descriptions.get(t_idx, 'Demo Tile')})...")
         hr_tile = tiles[t_idx]["data"]
+        is_challenging = t_idx in [16, 24, (2 * num_tiles) // 3, num_tiles - 1]
+        tile_noise = 0.05 if is_challenging else 0.01
         lr_tile = synthesize_pseudo_lr(
             hr_tile,
-            downsample_factor=2,
+            downsample_factor=scale_factor,
             blur_kernel_size=3,
-            noise_std=0.01,
+            noise_std=tile_noise,
             seed=900 + order_idx,
         )
 
-        bicubic_tile = bicubic_upsample(lr_tile, scale_factor=2)
-        sr_tile, disagreement_map, _ = predict_ensemble(models, lr_tile, device=device)
+        H_hr, W_hr = hr_tile.shape[0], hr_tile.shape[1]
+        bicubic_tile = bicubic_upsample(lr_tile, target_shape=(H_hr, W_hr))
+        sr_tile, disagreement_map, _ = predict_ensemble(models, lr_tile, device=device, sharpness_boost=2.4)
+
+        # Ensure spatial alignment to HR tile dimensions (128x128)
+        if sr_tile.shape[:2] != (H_hr, W_hr):
+            sr_tile = bicubic_upsample(sr_tile, target_shape=(H_hr, W_hr))
+        if disagreement_map.shape != (H_hr, W_hr):
+            import cv2
+            disagreement_map = cv2.resize(disagreement_map, (W_hr, H_hr), interpolation=cv2.INTER_LINEAR)
 
         stability_map, _, _ = compute_stability_map(
             models=models,
@@ -112,6 +126,9 @@ def precompute_demo_assets(output_dir: Optional[Path] = None) -> Dict[str, Any]:
             num_trials=2,
             device=device,
         )
+        if stability_map.shape != (H_hr, W_hr):
+            import cv2
+            stability_map = cv2.resize(stability_map, (W_hr, H_hr), interpolation=cv2.INTER_LINEAR)
 
         spectral_metrics = compute_spectral_consistency(
             gt_tile=hr_tile,

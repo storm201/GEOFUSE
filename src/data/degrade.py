@@ -17,43 +17,46 @@ from skimage.metrics import peak_signal_noise_ratio as compute_psnr
 from skimage.metrics import structural_similarity as compute_ssim
 
 
-def bicubic_downsample(image: np.ndarray, scale_factor: int = 2) -> np.ndarray:
+def bicubic_downsample(image: np.ndarray, scale_factor: Union[int, float] = 2) -> np.ndarray:
     """Downsample an image by scale_factor using bicubic interpolation.
 
     Args:
         image: Array of shape (H, W) or (H, W, C) in float or uint format.
-        scale_factor: Integer downsampling factor (e.g., 2).
+        scale_factor: Float or integer downsampling factor (e.g., 2 or 2.5).
 
     Returns:
-        np.ndarray: Downsampled array of shape (H // scale_factor, W // scale_factor, [C]).
+        np.ndarray: Downsampled array of shape (H_down, W_down, [C]).
     """
     h, w = image.shape[:2]
-    new_h = h // scale_factor
-    new_w = w // scale_factor
+    new_h = int(round(h / scale_factor))
+    new_w = int(round(w / scale_factor))
     downsampled = cv2.resize(
         image, (new_w, new_h), interpolation=cv2.INTER_CUBIC
     )
     return downsampled
 
 
-def bicubic_upsample(image: np.ndarray, scale_factor: int = 2, target_shape: Optional[Tuple[int, int]] = None) -> np.ndarray:
-    """Upsample an image by scale_factor using bicubic interpolation (the 2x baseline).
+def bicubic_upsample(
+    image: np.ndarray,
+    scale_factor: Union[int, float] = 2,
+    target_shape: Optional[Tuple[int, int]] = None,
+) -> np.ndarray:
+    """Upsample an image by scale_factor using bicubic interpolation.
 
     Args:
         image: Array of shape (H, W) or (H, W, C).
-        scale_factor: Integer upsampling factor (e.g., 2).
+        scale_factor: Float or integer upsampling factor (e.g., 2 or 2.5).
         target_shape: Optional (target_h, target_w) to match target dimensions exactly.
 
     Returns:
-        np.ndarray: Upsampled array of shape (H * scale_factor, W * scale_factor, [C])
-                    or target_shape.
+        np.ndarray: Upsampled array of shape (target_h, target_w, [C]).
     """
     if target_shape is not None:
         target_h, target_w = target_shape
     else:
         h, w = image.shape[:2]
-        target_h = h * scale_factor
-        target_w = w * scale_factor
+        target_h = int(round(h * scale_factor))
+        target_w = int(round(w * scale_factor))
 
     upsampled = cv2.resize(
         image, (target_w, target_h), interpolation=cv2.INTER_CUBIC

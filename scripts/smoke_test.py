@@ -27,7 +27,6 @@ def main() -> int:
         ("rasterio", "rasterio"),
         ("cv2 (opencv)", "cv2"),
         ("skimage (scikit-image)", "skimage"),
-        ("sklearn (scikit-learn)", "sklearn"),
         ("matplotlib", "matplotlib"),
         ("yaml (pyyaml)", "yaml"),
         ("streamlit", "streamlit"),

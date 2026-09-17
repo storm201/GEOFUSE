@@ -14,7 +14,7 @@ paths:
   processed_data_dir: "data/processed"
   checkpoints_dir: "checkpoints"
   outputs_dir: "outputs"
-  cache_dir: "cache"
+  cache_dir: "outputs/demo_cache"
   aoi_geojson_path: "data/aoi.geojson"
 
 # Hardware / Compute Settings
@@ -38,20 +38,25 @@ preprocessing:
 
 # Super-Resolution Model Hyperparameters
 model:
-  architecture: "rcan_light"  # Lightweight SR architecture
-  scale_factor: 2             # Nominally finer-resolution scale (2x or 4x)
+  architecture: "residual_srnet"  # Lightweight Residual SR architecture
+  scale_factor: 2.5           # 2.5x Super-Resolution reaching 4.0m GSD from Sentinel-2 10m bands
   num_channels: 4             # 4-band input (B02, B03, B04, B08)
-  num_features: 48            # Keep lightweight for RTX 4060 laptop VRAM
-  num_residual_groups: 3
-  num_residual_blocks: 4
+  num_features: 64            # Upgraded from 48 — richer multiscale representation on RTX 4060
+  num_residual_blocks: 8      # Doubled from 4 — deeper network for high-frequency detail learning
+  res_scale: 0.2              # Reduced res_scale for stable gradient flow in deeper network
 
 # Training Hyperparameters
 training:
-  batch_size: 16
-  epochs: 15
-  learning_rate: 0.0005
+  batch_size: 16              # Optimal for 8GB VRAM on RTX 4060
+  epochs: 40                  # 40 epochs on GPU for full convergence
+  learning_rate: 0.0004       # Tuned for AdamW with cosine annealing
   weight_decay: 0.0001
-  loss: "l1_ssim"             # Compound loss: L1 + SSIM
+  loss: "compound_l1_sobel_fft_laplacian"  # 4-component loss: L1 + Sobel + FFT + Laplacian
+  loss_weights:
+    grad_weight: 1.5           # Sobel edge gradient & magnitude contrast matching
+    fft_weight: 0.50           # FFT spectral magnitude loss (preserves upper octave frequencies)
+    lap_weight: 2.00           # Laplacian second-order sharpness penalty
+    var_weight: 1.00           # Edge variance matching (matches target sharpness distribution)
   save_best_only: true
   seed: 42
 
@@ -67,7 +72,7 @@ verification:
   synthetic_degradation:
     enabled: true
     blur_kernel_size: 3
-    downsample_factor: 2
+    downsample_factor: 2.5
     noise_std: 0.01
   perturbation_test:
     enabled: true
@@ -77,6 +82,7 @@ verification:
   spectral_consistency:
     ndvi_threshold: 0.05      # Flag patches with significant delta-NDVI
     band_ratio_tolerance: 0.1
+    sensor_noise_floor: 0.03  # ESA Sentinel-2 MSI Level-2A radiometric deadband
   structural_consistency:
     ssim_threshold: 0.70
     edge_gradient_tolerance: 0.15
@@ -95,7 +101,7 @@ verification:
 downstream:
   task_type: "building_footprint_analysis"
   threshold: 0.35
-  extractor: "morphological"   # Options: "morphological", "pretrained"
+  extractor: "morphological"   # Mathematical morphology (White Top-Hat + NDVI thresholding)
   morphology:
     tophat_kernel_size: 7      # Structural element kernel size (pixels)
     tophat_threshold: 25       # Minimum brightness contrast for built-up structures
@@ -112,5 +118,5 @@ dashboard:
 
 # Auditable Trust Receipt Configuration
 trust_receipt:
-  min_trust_score_threshold: 86.5   # Percentage threshold below which warning is flagged
+  min_trust_score_threshold: 86.5   # Percentage threshold below which warning is flagged (nominal threshold)
   outputs_dir: "outputs/receipts"

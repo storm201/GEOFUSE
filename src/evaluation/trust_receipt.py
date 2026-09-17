@@ -146,14 +146,14 @@ def generate_trust_receipt(
     comp_stats = fusion["component_stats"]
 
     # 3. Model Provenance
-    ckpt_dir = config.get("paths", {}).get("outputs_dir", "outputs") + "/checkpoints"
+    ckpt_dir = config.get("paths", {}).get("checkpoints_dir", "checkpoints")
     model_provenance = {
         "framework": "PyTorch",
         "architecture": "ResidualSRNet",
-        "scale_factor": int(config.get("model", {}).get("scale_factor", 2)),
-        "num_residual_blocks": int(config.get("model", {}).get("num_residual_blocks", 4)),
-        "num_features": int(config.get("model", {}).get("num_features", 48)),
-        "parameter_count": 273700,
+        "scale_factor": float(config.get("model", {}).get("scale_factor", 2.5)),
+        "num_residual_blocks": int(config.get("model", {}).get("num_residual_blocks", 8)),
+        "num_features": int(config.get("model", {}).get("num_features", 64)),
+        "parameter_count": 797477,
         "ensemble_size": int(config.get("ensemble", {}).get("ensemble_size", 3)),
         "checkpoint_ids": [
             f"{ckpt_dir}/ensemble_member_{i}.pth" for i in range(3)

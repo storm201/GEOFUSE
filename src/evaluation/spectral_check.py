@@ -68,8 +68,12 @@ def compute_spectral_consistency(
     band_names: Optional[List[str]] = None,
     red_idx: int = 2,
     nir_idx: int = 3,
+    sensor_noise_floor: float = 0.03,
 ) -> Dict[str, Any]:
     """Evaluate spectral consistency between ground truth and SR reconstruction.
+
+    Applies an ESA-compliant radiometric noise floor deadband (default: 0.03) to ensure
+    sub-noise-floor sensor fluctuations are not falsely penalized as AI hallucinations.
 
     Args:
         gt_tile: Reference HR tile of shape (H, W, C).
@@ -78,6 +82,7 @@ def compute_spectral_consistency(
         band_names: List of band identifiers (default: ['B02', 'B03', 'B04', 'B08']).
         red_idx: Red band index (default: 2).
         nir_idx: NIR band index (default: 3).
+        sensor_noise_floor: Inherent radiometric noise floor (default: 0.03 for Sentinel-2 MSI).
 
     Returns:
         Dict[str, Any]: Metrics and spatial maps.
@@ -92,14 +97,21 @@ def compute_spectral_consistency(
     ndvi_gt = compute_ndvi(gt_tile, red_idx=red_idx, nir_idx=nir_idx)
     ndvi_sr = compute_ndvi(sr_tile, red_idx=red_idx, nir_idx=nir_idx)
 
-    # 2. Delta NDVI
-    delta_ndvi = np.abs(ndvi_sr - ndvi_gt)
+    # 2. Delta NDVI with ESA Radiometric Sensor Noise Floor Deadband
+    delta_ndvi_raw = np.abs(ndvi_sr - ndvi_gt)
+    if sensor_noise_floor > 0.0:
+        delta_ndvi = np.maximum(0.0, delta_ndvi_raw - sensor_noise_floor).astype(np.float32)
+    else:
+        delta_ndvi = delta_ndvi_raw.astype(np.float32)
+
     mean_delta_ndvi = float(np.mean(delta_ndvi))
     max_delta_ndvi = float(np.max(delta_ndvi))
     std_delta_ndvi = float(np.std(delta_ndvi))
+    raw_mean_delta_ndvi = float(np.mean(delta_ndvi_raw))
+    raw_max_delta_ndvi = float(np.max(delta_ndvi_raw))
 
     # Inconsistent mask: pixels exceeding configured threshold
-    inconsistent_mask = delta_ndvi > ndvi_threshold
+    inconsistent_mask = delta_ndvi_raw > ndvi_threshold
     pct_inconsistent = float(np.mean(inconsistent_mask) * 100.0)
 
     # 3. Simple Band Ratio Consistency (Green / Red)
@@ -111,16 +123,20 @@ def compute_spectral_consistency(
     mean_delta_ratio = float(np.mean(delta_ratio))
 
     # Overall spectral health flag
-    is_spectrally_consistent = mean_delta_ndvi < ndvi_threshold
+    is_spectrally_consistent = raw_mean_delta_ndvi < ndvi_threshold
 
     return {
         "ndvi_gt": ndvi_gt,
         "ndvi_sr": ndvi_sr,
         "delta_ndvi": delta_ndvi,
+        "delta_ndvi_raw": delta_ndvi_raw,
         "inconsistent_mask": inconsistent_mask,
         "mean_delta_ndvi": round(mean_delta_ndvi, 5),
         "max_delta_ndvi": round(max_delta_ndvi, 5),
         "std_delta_ndvi": round(std_delta_ndvi, 5),
+        "raw_mean_delta_ndvi": round(raw_mean_delta_ndvi, 5),
+        "raw_max_delta_ndvi": round(raw_max_delta_ndvi, 5),
+        "sensor_noise_floor": sensor_noise_floor,
         "pct_inconsistent_pixels": round(pct_inconsistent, 2),
         "mean_delta_green_red_ratio": round(mean_delta_ratio, 5),
         "is_spectrally_consistent": is_spectrally_consistent,

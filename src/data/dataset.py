@@ -4,7 +4,7 @@ Enforces strict geographic hold-out splitting to prevent spatial autocorrelation
 and data leakage between training and validation sets.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -36,7 +36,7 @@ class SentinelSRDataset(Dataset):
         stride: int = 64,
         split: str = "train",
         val_quadrant: Tuple[int, int, int, int] = (256, 512, 256, 512),
-        downsample_factor: int = 2,
+        downsample_factor: Union[int, float] = 2.0,
         blur_kernel_size: int = 3,
         noise_std: float = 0.01,
         seed: int = 42,
@@ -88,7 +88,17 @@ class SentinelSRDataset(Dataset):
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, Any]]:
         record = self.patches[idx]
-        hr_patch = record["hr"]
+        hr_patch = record["hr"].copy()
+
+        # Data augmentation on training partition (dihedral symmetry group D4)
+        if self.split == "train":
+            if np.random.rand() > 0.5:
+                hr_patch = np.fliplr(hr_patch).copy()
+            if np.random.rand() > 0.5:
+                hr_patch = np.flipud(hr_patch).copy()
+            k = np.random.randint(0, 4)
+            if k > 0:
+                hr_patch = np.rot90(hr_patch, k=k).copy()
 
         # Synthesize degraded pseudo-LR tile
         lr_patch = synthesize_pseudo_lr(

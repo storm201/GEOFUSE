@@ -78,7 +78,9 @@ def run_pipeline(
 
     raw_dir = root / config.get("paths", {}).get("raw_data_dir", "data/raw")
     outputs_dir = root / config.get("paths", {}).get("outputs_dir", "outputs")
-    checkpoints_dir = outputs_dir / "checkpoints"
+    checkpoints_dir = root / config.get("paths", {}).get("checkpoints_dir", "checkpoints")
+    if not (checkpoints_dir / "ensemble_member_0.pth").exists() and (outputs_dir / "checkpoints" / "ensemble_member_0.pth").exists():
+        checkpoints_dir = outputs_dir / "checkpoints"
     previews_dir = outputs_dir / "previews"
     receipts_dir = outputs_dir / "receipts"
 
@@ -109,16 +111,18 @@ def run_pipeline(
     sample_indices = [0, len(raw_tiles) // 3, (2 * len(raw_tiles)) // 3, len(raw_tiles) - 1]
     print(f"Extracted {len(raw_tiles)} candidate tiles; selected {len(sample_indices)} geographically distinct test tiles.")
     
+    scale_factor = float(config.get("model", {}).get("scale_factor", 2.5))
     eval_tiles = [raw_tiles[idx]["data"] for idx in sample_indices]
     baseline_psnrs = []
     baseline_ssims = []
     for i, hr_tile in enumerate(eval_tiles):
-        pseudo_lr = synthesize_pseudo_lr(hr_tile, downsample_factor=2, blur_kernel_size=3, noise_std=0.01, seed=900 + i)
-        bicubic_sr = bicubic_upsample(pseudo_lr, scale_factor=2)
+        H_hr, W_hr = hr_tile.shape[0], hr_tile.shape[1]
+        pseudo_lr = synthesize_pseudo_lr(hr_tile, downsample_factor=scale_factor, blur_kernel_size=3, noise_std=0.01, seed=900 + i)
+        bicubic_sr = bicubic_upsample(pseudo_lr, target_shape=(H_hr, W_hr))
         fidelity = evaluate_reconstruction_fidelity(hr_tile, bicubic_sr)
         baseline_psnrs.append(fidelity["psnr_db"])
         baseline_ssims.append(fidelity["ssim"])
-        print(f"  Tile #{i}: Bicubic 2x PSNR = {fidelity['psnr_db']:.2f} dB, SSIM = {fidelity['ssim']:.4f}")
+        print(f"  Tile #{i}: Bicubic {scale_factor}x PSNR = {fidelity['psnr_db']:.2f} dB, SSIM = {fidelity['ssim']:.4f}")
 
     avg_bic_psnr = float(sum(baseline_psnrs) / len(baseline_psnrs))
     avg_bic_ssim = float(sum(baseline_ssims) / len(baseline_ssims))
@@ -134,7 +138,7 @@ def run_pipeline(
     ckpt_paths = [checkpoints_dir / f"ensemble_member_{idx}.pth" for idx in range(len(member_seeds))]
     all_ckpts_exist = all(p.exists() for p in ckpt_paths)
 
-    if all_ckpts_exist and not force_retrain and skip_training:
+    if all_ckpts_exist and skip_training:
         print("Existing ensemble checkpoints found and --skip-training requested:")
         for p in ckpt_paths:
             print(f"  - Reusing checkpoint: {p.name}")
@@ -154,9 +158,15 @@ def run_pipeline(
     pseudo_lrs = []
 
     for i, hr_tile in enumerate(eval_tiles):
-        lr_tile = synthesize_pseudo_lr(hr_tile, downsample_factor=2, blur_kernel_size=3, noise_std=0.01, seed=900 + i)
+        H_hr, W_hr = hr_tile.shape[0], hr_tile.shape[1]
+        lr_tile = synthesize_pseudo_lr(hr_tile, downsample_factor=scale_factor, blur_kernel_size=3, noise_std=0.01, seed=900 + i)
         pseudo_lrs.append(lr_tile)
         mean_sr, disag_map, _ = predict_ensemble(models, lr_tile, device=device)
+        if mean_sr.shape[:2] != (H_hr, W_hr):
+            mean_sr = bicubic_upsample(mean_sr, target_shape=(H_hr, W_hr))
+        if disag_map.shape != (H_hr, W_hr):
+            import cv2
+            disag_map = cv2.resize(disag_map, (W_hr, H_hr), interpolation=cv2.INTER_LINEAR)
         sr_outputs.append(mean_sr)
         disagreement_maps.append(disag_map)
         fid = evaluate_reconstruction_fidelity(hr_tile, mean_sr)
@@ -171,7 +181,8 @@ def run_pipeline(
     jitter_std = float(stability_cfg.get("brightness_jitter_std", 0.02))
 
     stability_maps = []
-    for i, lr_tile in enumerate(pseudo_lrs):
+    for i, (hr_tile, lr_tile) in enumerate(zip(eval_tiles, pseudo_lrs)):
+        H_hr, W_hr = hr_tile.shape[0], hr_tile.shape[1]
         stab_map, _, _ = compute_stability_map(
             models=models,
             lr_tile=lr_tile,
@@ -180,6 +191,9 @@ def run_pipeline(
             brightness_jitter_std=jitter_std,
             num_trials=2,
         )
+        if stab_map.shape != (H_hr, W_hr):
+            import cv2
+            stab_map = cv2.resize(stab_map, (W_hr, H_hr), interpolation=cv2.INTER_LINEAR)
         stability_maps.append(stab_map)
         print(f"  Tile #{i}: Mean Stability Variance = {stab_map.mean():.6f}")
 
@@ -191,12 +205,18 @@ def run_pipeline(
     edge_metrics_list = []
     structural_diff_list = []
 
+    spectral_cfg = config.get("verification", {}).get("spectral_consistency", {})
+    sensor_noise_floor = float(spectral_cfg.get("sensor_noise_floor", 0.03))
+    ndvi_thresh = float(spectral_cfg.get("ndvi_threshold", 0.05))
+
     for i, (hr_tile, sr_tile) in enumerate(zip(eval_tiles, sr_outputs)):
         spec_res = compute_spectral_consistency(
             gt_tile=hr_tile,
             sr_tile=sr_tile,
+            ndvi_threshold=ndvi_thresh,
             red_idx=2,
             nir_idx=3,
+            sensor_noise_floor=sensor_noise_floor,
         )
         edge_res = compute_edge_consistency(hr_tile, sr_tile)
 
@@ -244,7 +264,7 @@ def run_pipeline(
         sr_tile = sr_outputs[i]
         t_map = fusion_results[i]["trust_map"]
 
-        bic_sr = bicubic_upsample(lr_tile, scale_factor=2)
+        bic_sr = bicubic_upsample(lr_tile, target_shape=(hr_tile.shape[0], hr_tile.shape[1]))
         foot_bic = extract_building_footprints(
             bic_sr,
             tophat_kernel_size=int(morph_cfg.get("tophat_kernel_size", 7)),
