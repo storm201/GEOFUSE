@@ -747,6 +747,14 @@ GEOFUSE_PREMIUM_CSS = """
 }
 
 /* Base Body & App Container */
+html {
+    scroll-behavior: smooth !important;
+}
+
+[id] {
+    scroll-margin-top: 30px;
+}
+
 .stApp {
     background-color: var(--bg-deep) !important;
     color: var(--text-primary) !important;
@@ -829,14 +837,25 @@ p, span, label, div {
 .nav-links {
     display: flex;
     align-items: center;
-    gap: 22px;
+    gap: 8px;
 }
 .nav-link-item {
     font-size: 0.80rem;
     font-weight: 600;
-    color: var(--text-muted);
+    color: var(--text-muted) !important;
     text-transform: uppercase;
     letter-spacing: 0.06em;
+    text-decoration: none !important;
+    padding: 5px 12px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+.nav-link-item:hover {
+    color: var(--accent-primary) !important;
+    background: rgba(18, 214, 160, 0.12);
 }
 .nav-status {
     display: flex;
@@ -863,6 +882,45 @@ p, span, label, div {
 @keyframes pulse-glow {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* Sidebar Quick Navigation Rail */
+.sidebar-nav-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 16px;
+    background: rgba(12, 24, 40, 0.5);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 8px;
+}
+.sidebar-nav-header {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #8290A3;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    padding-left: 4px;
+}
+.sidebar-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.80rem;
+    font-weight: 500;
+    color: var(--text-muted) !important;
+    text-decoration: none !important;
+    padding: 6px 10px;
+    border-radius: 6px;
+    transition: all 0.18s ease;
+    cursor: pointer;
+}
+.sidebar-nav-link:hover {
+    color: var(--accent-primary) !important;
+    background: rgba(18, 214, 160, 0.10);
+    transform: translateX(2px);
 }
 
 /* Compact Hero */
@@ -997,6 +1055,42 @@ p, span, label, div {
     font-family: var(--font-mono);
     font-size: 0.74rem;
     color: var(--text-muted);
+}
+
+/* Upload Dropzone Styling */
+.dropzone-container {
+    background: rgba(12, 24, 40, 0.5);
+    border: 2px dashed rgba(53, 184, 245, 0.35);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    margin-bottom: 20px;
+    transition: border-color 0.2s ease;
+}
+.dropzone-container:hover {
+    border-color: var(--accent-primary);
+}
+.dropzone-icon {
+    font-size: 1.8rem;
+    color: var(--accent-secondary);
+    margin-bottom: 6px;
+}
+.dropzone-title {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+.dropzone-sub {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+.dropzone-bands {
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    color: var(--accent-secondary);
+    font-weight: 600;
 }
 
 /* Image Workspace Viewports (Hero of the page) */
@@ -1245,7 +1339,7 @@ button[kind="secondary"]:hover, [data-testid="stBaseButton-secondary"]:hover {
 # -----------------------------------------------------------------------------
 
 def render_top_navigation():
-    """Render the sleek top aerospace navigation bar."""
+    """Render the sleek top aerospace navigation bar with accessible jump anchors."""
     st.markdown(
         """
         <div class="top-nav-bar">
@@ -1254,10 +1348,10 @@ def render_top_navigation():
                 <div class="nav-badge-sub">SIH 2026</div>
             </div>
             <div class="nav-links">
-                <span class="nav-link-item active">Dashboard</span>
-                <span class="nav-link-item">Analysis</span>
-                <span class="nav-link-item">Trust</span>
-                <span class="nav-link-item">Downloads</span>
+                <a href="#workspace" onclick="document.getElementById('workspace')?.scrollIntoView({behavior: 'smooth'}); return false;" class="nav-link-item">Workspace</a>
+                <a href="#trust" onclick="document.getElementById('trust')?.scrollIntoView({behavior: 'smooth'}); return false;" class="nav-link-item">Trust & Uncertainty</a>
+                <a href="#analysis" onclick="document.getElementById('analysis')?.scrollIntoView({behavior: 'smooth'}); return false;" class="nav-link-item">Analysis</a>
+                <a href="#downloads" onclick="document.getElementById('downloads')?.scrollIntoView({behavior: 'smooth'}); return false;" class="nav-link-item">Downloads</a>
             </div>
             <div class="nav-status">
                 <span class="pulse-dot"></span>
@@ -1398,12 +1492,12 @@ def render_main_image_workspace(
     sr_shape: Tuple[int, int],
     is_false_color: bool = False,
 ):
-    """Render the dominant hero satellite image workspace."""
+    """Render the dominant hero satellite image workspace with accessible anchor."""
     in_h, in_w = in_shape
     sr_h, sr_w = sr_shape
     band_label = "CIR (B08-B04-B03)" if is_false_color else "RGB (B04-B03-B02)"
 
-    st.markdown('<div class="workspace-container">', unsafe_allow_html=True)
+    st.markdown('<div id="workspace" class="workspace-container">', unsafe_allow_html=True)
     c1, c2 = st.columns(2)
 
     with c1:
@@ -1486,10 +1580,10 @@ def render_trust_section(
     is_trusted: bool,
     show_evidence: bool = False,
 ):
-    """Render the major Trust & Uncertainty section."""
+    """Render the major Trust & Uncertainty section with accessible anchor."""
     st.markdown(
         """
-        <div class="intel-section-header">
+        <div id="trust" class="intel-section-header">
             <div class="intel-title">🛡️ TRUST & UNCERTAINTY</div>
         </div>
         <div class="intel-subtitle">
@@ -1596,10 +1690,10 @@ def render_trust_section(
 
 
 def render_ndvi_section(input_10m: np.ndarray, sr_4m: np.ndarray):
-    """Render the Vegetation Intelligence (NDVI) section."""
+    """Render the Vegetation Intelligence (NDVI) section with accessible anchor."""
     st.markdown(
         """
-        <div class="intel-section-header">
+        <div id="analysis" class="intel-section-header">
             <div class="intel-title">🌿 VEGETATION INTELLIGENCE (NDVI)</div>
         </div>
         <div class="intel-subtitle">
@@ -1652,10 +1746,10 @@ def render_ndvi_section(input_10m: np.ndarray, sr_4m: np.ndarray):
 
 
 def render_urban_section(data: Dict[str, Any], rgb_10m_disp: np.ndarray, rgb_sr_raw: np.ndarray):
-    """Render the Urban Intelligence section with building footprint cyan contour overlays."""
+    """Render the Urban Intelligence section with building footprint cyan contour overlays and accessible anchor."""
     st.markdown(
         """
-        <div class="intel-section-header">
+        <div id="urban" class="intel-section-header">
             <div class="intel-title">🏙️ URBAN INTELLIGENCE</div>
         </div>
         <div class="intel-subtitle">
@@ -1708,10 +1802,10 @@ def render_urban_section(data: Dict[str, Any], rgb_10m_disp: np.ndarray, rgb_sr_
 
 
 def render_agriculture_section(data: Dict[str, Any], input_10m: np.ndarray, sr_4m: np.ndarray):
-    """Render the Agricultural Intelligence section."""
+    """Render the Agricultural Intelligence section with accessible anchor."""
     st.markdown(
         """
-        <div class="intel-section-header">
+        <div id="agriculture" class="intel-section-header">
             <div class="intel-title">🌾 AGRICULTURAL INTELLIGENCE</div>
         </div>
         <div class="intel-subtitle">
@@ -1774,10 +1868,10 @@ def render_agriculture_section(data: Dict[str, Any], input_10m: np.ndarray, sr_4
 
 
 def render_downloads_section(exported_paths: Dict[str, Any], receipt: Dict[str, Any], selected_key: str):
-    """Render polished deliverable export cards."""
+    """Render polished deliverable export cards with accessible anchor."""
     st.markdown(
         """
-        <div class="intel-section-header">
+        <div id="downloads" class="intel-section-header">
             <div class="intel-title">📥 EXPORT PRODUCTS & PROVENANCE</div>
         </div>
         <div class="intel-subtitle">
@@ -1915,7 +2009,7 @@ def main():
     # Inject dark premium geospatial design tokens
     st.markdown(GEOFUSE_PREMIUM_CSS, unsafe_allow_html=True)
 
-    # Top Navigation Bar
+    # Top Navigation Bar with interactive anchors
     render_top_navigation()
 
     # Title for AppTest assertions
@@ -2166,6 +2260,22 @@ def main():
                 st.info("ℹ️ Drop your Sentinel-2 band files above to process your custom scene. Showing pre-loaded reference below.")
                 data = run_real_sentinel2_pipeline_cached(scene_key="urban_core", tile_size=128)
                 selected_key = "urban_core"
+
+        # Sidebar Quick Jump Navigation Rail
+        st.sidebar.markdown(
+            """
+            <div class="sidebar-nav-rail">
+                <div class="sidebar-nav-header">QUICK JUMP SECTIONS</div>
+                <a href="#workspace" onclick="document.getElementById('workspace')?.scrollIntoView({behavior: 'smooth'}); return false;" class="sidebar-nav-link">✦ 10m vs 4m Imagery</a>
+                <a href="#trust" onclick="document.getElementById('trust')?.scrollIntoView({behavior: 'smooth'}); return false;" class="sidebar-nav-link">◌ Trust & Uncertainty</a>
+                <a href="#analysis" onclick="document.getElementById('analysis')?.scrollIntoView({behavior: 'smooth'}); return false;" class="sidebar-nav-link">🌿 Vegetation (NDVI)</a>
+                <a href="#urban" onclick="document.getElementById('urban')?.scrollIntoView({behavior: 'smooth'}); return false;" class="sidebar-nav-link">▣ Urban Intelligence</a>
+                <a href="#agriculture" onclick="document.getElementById('agriculture')?.scrollIntoView({behavior: 'smooth'}); return false;" class="sidebar-nav-link">◒ Agriculture</a>
+                <a href="#downloads" onclick="document.getElementById('downloads')?.scrollIntoView({behavior: 'smooth'}); return false;" class="sidebar-nav-link">↓ Downloads & Deliverables</a>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
         # Sidebar Display and Toggles
         st.sidebar.markdown("---")
