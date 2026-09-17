@@ -1057,40 +1057,63 @@ p, span, label, div {
     color: var(--text-muted);
 }
 
-/* Upload Dropzone Styling */
-.dropzone-container {
-    background: rgba(12, 24, 40, 0.5);
-    border: 2px dashed rgba(53, 184, 245, 0.35);
-    border-radius: 12px;
-    padding: 24px;
-    text-align: center;
-    margin-bottom: 20px;
-    transition: border-color 0.2s ease;
+/* REAL STREAMLIT FILE UPLOADER STYLED AS HERO DROPZONE */
+[data-testid="stFileUploader"] {
+    width: 100% !important;
+    margin-bottom: 18px !important;
 }
-.dropzone-container:hover {
-    border-color: var(--accent-primary);
+
+[data-testid="stFileUploader"] > label {
+    display: none !important;
 }
-.dropzone-icon {
-    font-size: 1.8rem;
-    color: var(--accent-secondary);
-    margin-bottom: 6px;
+
+[data-testid="stFileUploaderDropzone"] {
+    background: rgba(12, 24, 40, 0.55) !important;
+    border: 2px dashed rgba(53, 184, 245, 0.45) !important;
+    border-radius: 12px !important;
+    padding: 32px 24px !important;
+    text-align: center !important;
+    transition: all 0.25s ease !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+    cursor: pointer !important;
 }
-.dropzone-title {
-    font-weight: 700;
-    font-size: 1.05rem;
-    color: var(--text-primary);
-    margin-bottom: 4px;
+
+[data-testid="stFileUploaderDropzone"]:hover,
+[data-testid="stFileUploaderDropzone"]:focus-within {
+    border-color: #12D6A0 !important;
+    background: rgba(18, 214, 160, 0.08) !important;
+    box-shadow: 0 0 24px rgba(18, 214, 160, 0.25) !important;
 }
-.dropzone-sub {
-    font-size: 0.82rem;
-    color: var(--text-muted);
-    margin-bottom: 8px;
+
+[data-testid="stFileUploaderDropzone"] span {
+    font-family: var(--font-sans) !important;
+    color: #F4F7FA !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
 }
-.dropzone-bands {
-    font-family: var(--font-mono);
-    font-size: 0.76rem;
-    color: var(--accent-secondary);
-    font-weight: 600;
+
+[data-testid="stFileUploaderDropzone"] small {
+    font-family: var(--font-mono) !important;
+    color: var(--text-muted) !important;
+    font-size: 0.76rem !important;
+}
+
+[data-testid="stFileUploaderDropzone"] button {
+    background: rgba(53, 184, 245, 0.15) !important;
+    border: 1px solid rgba(53, 184, 245, 0.35) !important;
+    color: #35B8F5 !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+    padding: 6px 16px !important;
+    margin-top: 10px !important;
+    transition: all 0.2s ease !important;
+}
+
+[data-testid="stFileUploaderDropzone"] button:hover {
+    background: var(--accent-primary) !important;
+    color: #050B14 !important;
+    border-color: var(--accent-primary) !important;
 }
 
 /* Image Workspace Viewports (Hero of the page) */
@@ -2121,49 +2144,41 @@ def main():
                 unsafe_allow_html=True,
             )
 
-            # Dropzone target presentation
-            st.markdown(
-                """
-                <div class="dropzone-container">
-                    <div class="dropzone-icon">↑</div>
-                    <div class="dropzone-title">Drop Sentinel-2 imagery or browse files</div>
-                    <div class="dropzone-sub">Upload genuine Level-2A Multi-Spectral Imagery for direct 2.5× learned super-resolution</div>
-                    <div class="dropzone-bands">B02 (Blue) · B03 (Green) · B04 (Red) · B08 (NIR) &nbsp;[GeoTIFF / JP2]</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            if "uploader_key_version" not in st.session_state:
+                st.session_state["uploader_key_version"] = 0
 
-            u_col1, u_col2 = st.columns([3, 1])
+            # Functional Drag-and-Drop File Uploader Area
+            u_col1, u_col2 = st.columns([4, 1])
             with u_col1:
-                upload_fmt = st.radio(
-                    "Select Raster Input Format:",
-                    options=["Four Separate Band Files (B02, B03, B04, B08)", "Single 4-Band Multi-Spectral GeoTIFF"],
-                    horizontal=True,
+                st.markdown(
+                    """
+                    <div style="margin-bottom: 4px;">
+                        <div style="font-size: 1.05rem; font-weight: 700; color: #F4F7FA; display: flex; align-items: center; gap: 8px;">
+                            <span>🛰️</span> Drag and Drop Sentinel-2 Imagery or Browse Files
+                        </div>
+                        <div style="font-size: 0.82rem; color: #8290A3; margin-top: 2px;">
+                            Drop 4 separate band files (<span style="color: #35B8F5; font-family: 'JetBrains Mono', monospace; font-weight: 600;">B02, B03, B04, B08</span>) or a single 4-band multi-spectral GeoTIFF / JP2 (~10m GSD).
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
                 )
             with u_col2:
                 if st.button("🗑️ Reset Upload", use_container_width=True):
                     for k in ["custom_upload_result", "custom_upload_hash", "custom_upload_validation"]:
                         if k in st.session_state:
                             del st.session_state[k]
+                    st.session_state["uploader_key_version"] += 1
                     st.rerun()
 
-            uploaded_files = []
-            if "Four Separate" in upload_fmt:
-                uploaded_files = st.file_uploader(
-                    "Upload 4 Sentinel-2 Bands (Select B02, B03, B04, B08 .tif/.jp2):",
-                    type=["tif", "tiff", "jp2", "TIF"],
-                    accept_multiple_files=True,
-                    key="custom_multi_band_uploader",
-                )
-            else:
-                s_file = st.file_uploader(
-                    "Upload Single 4-Band GeoTIFF (Band 1=B02, 2=B03, 3=B04, 4=B08):",
-                    type=["tif", "tiff", "jp2", "TIF"],
-                    key="custom_single_band_uploader",
-                )
-                if s_file is not None:
-                    uploaded_files = [s_file]
+            # The actual live Streamlit drag-and-drop zone styled with the dashed cyan border
+            uploaded_files = st.file_uploader(
+                "Drop Sentinel-2 imagery (B02, B03, B04, B08) or browse files",
+                type=["tif", "tiff", "jp2", "TIF", "TIFF"],
+                accept_multiple_files=True,
+                key=f"custom_sentinel_uploader_{st.session_state['uploader_key_version']}",
+                label_visibility="collapsed",
+            )
 
             if uploaded_files and len(uploaded_files) > 0:
                 upload_hash = compute_files_hash(uploaded_files)
@@ -2257,7 +2272,7 @@ def main():
                     st.error(f"Validation Failed: {val_err}. Please ensure 4 matching Level-2A 10m bands are provided.")
 
             else:
-                st.info("ℹ️ Drop your Sentinel-2 band files above to process your custom scene. Showing pre-loaded reference below.")
+                st.info("ℹ️ Drag and drop your Sentinel-2 band files into the dashed box above to process your custom scene. Showing pre-loaded reference below.")
                 data = run_real_sentinel2_pipeline_cached(scene_key="urban_core", tile_size=128)
                 selected_key = "urban_core"
 
