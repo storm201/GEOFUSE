@@ -722,8 +722,442 @@ def extract_zoomed_crop(
 
 
 # -----------------------------------------------------------------------------
-# Main Application UI
+# Main Application UI & Aerospace Design System
 # -----------------------------------------------------------------------------
+
+GEOFUSE_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+
+:root {
+    --bg-base: #080B10;
+    --bg-surface: #0E1524;
+    --bg-elevated: #152033;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-accent: rgba(0, 229, 255, 0.35);
+    --accent-cyan: #00E5FF;
+    --accent-emerald: #10B981;
+    --accent-amber: #F59E0B;
+    --accent-red: #EF4444;
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* Global App Container */
+.stApp {
+    background-color: var(--bg-base) !important;
+    color: var(--text-primary) !important;
+    font-family: var(--font-sans) !important;
+}
+
+/* Typography Overrides */
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-sans) !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.015em !important;
+    color: var(--text-primary) !important;
+}
+
+p, span, label {
+    font-family: var(--font-sans) !important;
+}
+
+/* Streamlit Header / Toolbar */
+header[data-testid="stHeader"] {
+    background: rgba(8, 11, 16, 0.85) !important;
+    backdrop-filter: blur(12px) !important;
+    border-bottom: 1px solid var(--border-subtle) !important;
+}
+
+/* Sidebar Container */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #0A0F1A 0%, #060910 100%) !important;
+    border-right: 1px solid var(--border-subtle) !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h1,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h2,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3 {
+    font-size: 0.76rem !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    color: var(--text-muted) !important;
+    font-weight: 700 !important;
+    margin-top: 1.1rem !important;
+    margin-bottom: 0.4rem !important;
+}
+
+/* Metric Cards */
+[data-testid="stMetric"] {
+    background: rgba(14, 21, 36, 0.7) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 10px !important;
+    padding: 12px 16px !important;
+    box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.4) !important;
+    backdrop-filter: blur(12px) !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+[data-testid="stMetric"]:hover {
+    border-color: var(--border-accent) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 24px -4px rgba(0, 229, 255, 0.18) !important;
+}
+[data-testid="stMetricLabel"] {
+    font-family: var(--font-sans) !important;
+    font-size: 0.70rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.07em !important;
+    text-transform: uppercase !important;
+    color: var(--text-secondary) !important;
+}
+[data-testid="stMetricValue"] {
+    font-family: var(--font-mono) !important;
+    font-size: 1.55rem !important;
+    font-weight: 700 !important;
+    color: var(--text-primary) !important;
+    letter-spacing: -0.02em !important;
+}
+[data-testid="stMetricDelta"] {
+    font-family: var(--font-sans) !important;
+    font-size: 0.74rem !important;
+    font-weight: 500 !important;
+}
+
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 6px !important;
+    background-color: rgba(14, 21, 36, 0.6) !important;
+    padding: 6px !important;
+    border-radius: 10px !important;
+    border: 1px solid var(--border-subtle) !important;
+}
+.stTabs [data-baseweb="tab"] {
+    height: 38px !important;
+    border-radius: 7px !important;
+    padding: 0 16px !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.84rem !important;
+    font-weight: 500 !important;
+    border: none !important;
+    background: transparent !important;
+    transition: all 0.15s ease !important;
+}
+.stTabs [aria-selected="true"] {
+    background-color: rgba(0, 229, 255, 0.12) !important;
+    color: var(--accent-cyan) !important;
+    font-weight: 600 !important;
+    border: 1px solid var(--border-accent) !important;
+}
+
+/* Buttons */
+button[kind="primary"], [data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%) !important;
+    color: #FFFFFF !important;
+    border: 1px solid rgba(56, 189, 248, 0.4) !important;
+    border-radius: 8px !important;
+    font-family: var(--font-sans) !important;
+    font-weight: 600 !important;
+    font-size: 0.86rem !important;
+    box-shadow: 0 4px 14px rgba(14, 165, 233, 0.3) !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+button[kind="primary"]:hover, [data-testid="stBaseButton-primary"]:hover {
+    background: linear-gradient(135deg, #38BDF8 0%, #0EA5E9 100%) !important;
+    box-shadow: 0 6px 20px rgba(56, 189, 248, 0.45) !important;
+    transform: translateY(-1px) !important;
+}
+button[kind="secondary"], [data-testid="stBaseButton-secondary"] {
+    background: rgba(14, 21, 36, 0.7) !important;
+    color: #E2E8F0 !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 8px !important;
+    font-family: var(--font-sans) !important;
+    font-weight: 500 !important;
+    font-size: 0.84rem !important;
+    transition: all 0.18s ease !important;
+}
+button[kind="secondary"]:hover, [data-testid="stBaseButton-secondary"]:hover {
+    border-color: var(--border-accent) !important;
+    color: var(--accent-cyan) !important;
+    background: rgba(14, 21, 36, 0.95) !important;
+}
+
+/* Radio Buttons */
+[data-testid="stRadio"] label {
+    font-size: 0.84rem !important;
+    color: #CBD5E1 !important;
+}
+
+/* Select Box */
+[data-testid="stSelectbox"] > div > div {
+    background: rgba(14, 21, 36, 0.7) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 8px !important;
+    color: var(--text-primary) !important;
+}
+
+/* Checkboxes */
+[data-testid="stCheckbox"] label {
+    font-size: 0.84rem !important;
+    color: #CBD5E1 !important;
+}
+
+/* Images */
+[data-testid="stImage"] img {
+    border-radius: 8px !important;
+    border: 1px solid var(--border-subtle) !important;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45) !important;
+}
+[data-testid="stImage"] [data-testid="stCaptionContainer"] {
+    font-family: var(--font-mono) !important;
+    font-size: 0.74rem !important;
+    color: var(--text-secondary) !important;
+    letter-spacing: 0.02em !important;
+    margin-top: 6px !important;
+}
+
+/* Custom HUD Panels */
+.geofuse-hud-panel {
+    background: rgba(10, 16, 26, 0.85);
+    border: 1px solid rgba(0, 229, 255, 0.25);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 20px -4px rgba(0, 229, 255, 0.15);
+}
+.geofuse-hud-panel.benchmark {
+    border-color: rgba(245, 158, 11, 0.35);
+    box-shadow: 0 4px 20px -4px rgba(245, 158, 11, 0.15);
+}
+.hud-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--accent-cyan);
+    box-shadow: 0 0 8px var(--accent-cyan);
+    display: inline-block;
+    animation: pulse-dot 2s infinite ease-in-out;
+}
+.status-dot.amber {
+    background-color: var(--accent-amber);
+    box-shadow: 0 0 8px var(--accent-amber);
+}
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+}
+.hud-tag {
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+}
+.hud-tag.amber {
+    color: var(--accent-amber);
+}
+.hud-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.76rem;
+}
+.hud-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    padding-bottom: 3px;
+}
+.hud-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+.hud-k {
+    font-family: var(--font-sans);
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.hud-v {
+    font-family: var(--font-mono);
+    color: #E2E8F0;
+    font-weight: 600;
+}
+.hud-v.green {
+    color: var(--accent-emerald);
+}
+.hud-v.cyan {
+    color: var(--accent-cyan);
+}
+
+/* Telemetry Ribbon for main content */
+.telemetry-ribbon {
+    background: linear-gradient(135deg, rgba(14, 21, 36, 0.95) 0%, rgba(10, 15, 25, 0.95) 100%);
+    border: 1px solid var(--border-subtle);
+    border-left: 4px solid var(--accent-cyan);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 22px;
+    box-shadow: 0 6px 24px -4px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(12px);
+}
+.telemetry-ribbon.benchmark {
+    border-left-color: var(--accent-amber);
+}
+.ribbon-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.ribbon-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.ribbon-title {
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--text-primary);
+}
+.ribbon-badge {
+    font-family: var(--font-mono);
+    font-size: 0.70rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(0, 229, 255, 0.12);
+    color: var(--accent-cyan);
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    letter-spacing: 0.06em;
+}
+.ribbon-badge.amber {
+    background: rgba(245, 158, 11, 0.12);
+    color: var(--accent-amber);
+    border-color: rgba(245, 158, 11, 0.3);
+}
+.ribbon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+}
+.ribbon-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.cell-label {
+    font-family: var(--font-sans);
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+}
+.cell-val {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #E2E8F0;
+}
+.cell-val.cyan { color: var(--accent-cyan); }
+.cell-val.green { color: var(--accent-emerald); }
+
+/* Viewport Channel Headers */
+.viewport-header {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    background: rgba(14, 21, 36, 0.65);
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle);
+}
+.viewport-ch-tag {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+.viewport-ch-tag.accent {
+    color: var(--accent-cyan);
+}
+.viewport-heading {
+    font-family: var(--font-sans);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Upload Panels */
+.upload-status-card {
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 12px 0;
+    backdrop-filter: blur(12px);
+}
+.upload-status-card.passed {
+    background: rgba(6, 78, 59, 0.35);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    box-shadow: 0 4px 20px -4px rgba(16, 185, 129, 0.2);
+}
+.upload-status-card.failed {
+    background: rgba(127, 29, 29, 0.35);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    box-shadow: 0 4px 20px -4px rgba(239, 68, 68, 0.2);
+}
+.upload-card-title {
+    font-family: var(--font-sans);
+    font-size: 0.98rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.upload-card-title.passed { color: #34D399; }
+.upload-card-title.failed { color: #F87171; }
+.upload-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    font-size: 0.84rem;
+    color: #E2E8F0;
+}
+.upload-grid-item {
+    display: flex;
+    gap: 6px;
+}
+.upload-grid-k {
+    color: #94A3B8;
+    font-weight: 500;
+}
+.upload-grid-v {
+    color: #6EE7B7;
+    font-family: var(--font-mono);
+    font-weight: 600;
+}
+</style>
+"""
+
 
 def main():
     st.set_page_config(
@@ -733,15 +1167,25 @@ def main():
         initial_sidebar_state="expanded",
     )
 
-    # Header & Banner
+    # Inject aerospace styling tokens
+    st.markdown(GEOFUSE_CSS, unsafe_allow_html=True)
+
+    # Header & Telemetry Subtitle
     st.title("🛰️ GeoFUSE SentinelGuard")
     st.markdown(
-        "**Deep Learning Based Super-Resolution Mapping (SRM) from Medium-Resolution Satellite Imageries**  \n"
-        "*" "Direct 2.5× learned super-resolution: 10m Sentinel-2 observations → nominal 4m output grid with evidence attached." "*"
+        """
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: -10px; margin-bottom: 18px;">
+            <span style="font-size: 0.88rem; color: #94A3B8; font-weight: 500;">Deep Learning Based Super-Resolution Mapping (SRM) · Medium-Resolution Satellite Imageries</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; background: rgba(0, 229, 255, 0.1); border: 1px solid rgba(0, 229, 255, 0.25); font-family: 'JetBrains Mono', monospace; font-size: 0.70rem; color: #00E5FF; font-weight: 600;">ESA S2-L2A DIRECT</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); font-family: 'JetBrains Mono', monospace; font-size: 0.70rem; color: #10B981; font-weight: 600;">ZERO SYNTHETIC BLUR</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; background: rgba(148, 163, 184, 0.1); border: 1px solid rgba(148, 163, 184, 0.2); font-family: 'JetBrains Mono', monospace; font-size: 0.70rem; color: #CBD5E1; font-weight: 600;">10.0m → 4.0m GSD</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
     # 1. Sidebar Controls & Mode Selection
-    st.sidebar.header("🕹️ Controls & Settings")
+    st.sidebar.header("Controls & Configuration")
 
     operational_mode = st.sidebar.radio(
         "Select Operational Experience:",
@@ -754,7 +1198,7 @@ def main():
     )
 
     # Flush cache button
-    if st.sidebar.button("🔄 Flush Cache & Reload", use_container_width=True):
+    if st.sidebar.button("Flush Cache & Reload System", use_container_width=True):
         st.cache_data.clear()
         st.cache_resource.clear()
         st.rerun()
@@ -765,9 +1209,16 @@ def main():
     if "Direct Real Sentinel-2" in operational_mode:
         st.sidebar.markdown(
             """
-            <div style="background: #0d2137; border: 1px solid #00e5ff; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px;">
-                <div style="font-size: 0.88rem; font-weight: bold; color: #00e5ff;">🚀 Pipeline: DIRECT REAL SR</div>
-                <div style="font-size: 0.76rem; color: #b0bec5;">Synthetic Blur: <b>OFF (Zero Degradation)</b><br>Model Scale: <b>2.5× (10m → 4m)</b><br>Device: <b>RTX 4060 GPU (CUDA)</b></div>
+            <div class="geofuse-hud-panel">
+                <div class="hud-header">
+                    <span class="status-dot"></span>
+                    <span class="hud-tag">PIPELINE · DIRECT REAL SR</span>
+                </div>
+                <div class="hud-rows">
+                    <div class="hud-row"><span class="hud-k">DEGRADATION</span><span class="hud-v green">OFF (Zero Injected)</span></div>
+                    <div class="hud-row"><span class="hud-k">LEARNED SCALE</span><span class="hud-v cyan">2.5× (10m → 4m)</span></div>
+                    <div class="hud-row"><span class="hud-k">ACCELERATION</span><span class="hud-v">CUDA (RTX 4060)</span></div>
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -776,8 +1227,8 @@ def main():
         input_source_type = st.sidebar.radio(
             "Sentinel-2 Input Selection:",
             options=[
-                "📁 Pre-Loaded Real Sentinel-2 Scenes",
-                "📤 Upload Custom Sentinel-2 Imagery (Live Direct SR)",
+                "Pre-Loaded Real Sentinel-2 Scenes",
+                "Upload Custom Sentinel-2 Imagery (Live Direct SR)",
             ],
             index=0,
             help="Choose whether to explore pre-loaded genuine Sentinel-2 MSI scenes or upload your own B02, B03, B04, B08 band files for direct 10m -> 4m learned super-resolution.",
@@ -789,43 +1240,43 @@ def main():
         # ---------------------------------------------------------------------
         # PATH A: PRE-LOADED REAL SENTINEL-2 SCENES
         # ---------------------------------------------------------------------
-        if input_source_type == "📁 Pre-Loaded Real Sentinel-2 Scenes":
+        if "Pre-Loaded" in input_source_type:
             scene_choice = st.sidebar.selectbox(
                 "Select Real Sentinel-2 Scene:",
                 options=[
-                    "🏙️ Urban Core & Infrastructure (T43PGQ 10m L2A)",
-                    "🌾 Rural Farmland & Crop Fields (T43PGQ 10m L2A)",
-                    "🍂 Dry Season Transition Scene (April 2024)",
-                    "📁 Base L2A 4-Band Scene (data/raw)",
+                    "Urban Core & Infrastructure (T43PGQ 10m L2A)",
+                    "Rural Farmland & Crop Fields (T43PGQ 10m L2A)",
+                    "Dry Season Transition Scene (April 2024)",
+                    "Base L2A 4-Band Scene (data/raw)",
                 ],
                 index=0,
             )
 
             scene_key_map = {
-                "🏙️ Urban Core & Infrastructure (T43PGQ 10m L2A)": "urban_core",
-                "🌾 Rural Farmland & Crop Fields (T43PGQ 10m L2A)": "agriculture",
-                "🍂 Dry Season Transition Scene (April 2024)": "temporal_april2024",
-                "📁 Base L2A 4-Band Scene (data/raw)": "base_raw",
+                "Urban Core & Infrastructure (T43PGQ 10m L2A)": "urban_core",
+                "Rural Farmland & Crop Fields (T43PGQ 10m L2A)": "agriculture",
+                "Dry Season Transition Scene (April 2024)": "temporal_april2024",
+                "Base L2A 4-Band Scene (data/raw)": "base_raw",
             }
-            selected_key = scene_key_map[scene_choice]
+            selected_key = scene_key_map.get(scene_choice, "urban_core")
 
-            st.sidebar.subheader("📐 Sub-Region / Crop Selection")
+            st.sidebar.subheader("Sub-Region / Crop Selection")
             crop_mode = st.sidebar.radio(
                 "Region to Explore:",
-                options=["🎯 Default Center Tile (128×128)", "📍 Custom (X, Y) Coordinates", "🗺️ Full Scene (1280×1280 Stitched 4m)"],
+                options=["Default Center Tile (128×128)", "Custom (X, Y) Coordinates", "Full Scene (1280×1280 Stitched 4m)"],
                 index=0,
             )
 
             crop_coords = None
             full_scene = False
-            if crop_mode == "📍 Custom (X, Y) Coordinates":
+            if "Custom" in crop_mode:
                 c1, c2 = st.sidebar.columns(2)
                 with c1:
                     cx_in = st.number_input("Crop X:", min_value=0, max_value=384, value=192, step=16)
                 with c2:
                     cy_in = st.number_input("Crop Y:", min_value=0, max_value=384, value=192, step=16)
                 crop_coords = (int(cx_in), int(cy_in))
-            elif crop_mode == "🗺️ Full Scene (1280×1280 Stitched 4m)":
+            elif "Full Scene" in crop_mode:
                 full_scene = True
 
             data = run_real_sentinel2_pipeline_cached(
@@ -841,9 +1292,14 @@ def main():
         else:
             st.sidebar.markdown(
                 """
-                <div style="background: #062319; border: 1px solid #00e676; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; font-size: 0.82rem; color: #b9f6ca;">
-                    <b>📤 Custom Live Upload Mode Active</b><br>
-                    Drop your B02, B03, B04, B08 GeoTIFF files or single 4-band raster in the main panel.
+                <div class="geofuse-hud-panel">
+                    <div class="hud-header">
+                        <span class="status-dot green"></span>
+                        <span class="hud-tag">LIVE UPLOAD MODE ACTIVE</span>
+                    </div>
+                    <div style="font-size: 0.78rem; color: #94A3B8; line-height: 1.4;">
+                        Drop genuine B02, B03, B04, B08 GeoTIFF files or single 4-band raster in the main panel.
+                    </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -914,22 +1370,22 @@ def main():
                 if is_valid and val_info:
                     st.markdown(
                         f"""
-                        <div style="background: #062319; border: 1px solid #00e676; border-radius: 8px; padding: 14px 18px; margin: 12px 0;">
-                            <div style="font-size: 1.05rem; font-weight: bold; color: #00e676; margin-bottom: 8px;">
-                                📋 Input Validation: PASSED ✓
+                        <div class="upload-status-card passed">
+                            <div class="upload-card-title passed">
+                                <span>✔</span> INPUT VALIDATION PASSED
                             </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.86rem; color: #e0f2f1;">
-                                <div>• <b>B02 (Blue 10m):</b> <span style="color:#69f0ae;">✓ {val_info.get('band_files', {}).get('B02', Path('B02')).name if val_info.get('format') == 'separate_bands' else 'Band 1'}</span></div>
-                                <div>• <b>B03 (Green 10m):</b> <span style="color:#69f0ae;">✓ {val_info.get('band_files', {}).get('B03', Path('B03')).name if val_info.get('format') == 'separate_bands' else 'Band 2'}</span></div>
-                                <div>• <b>B04 (Red 10m):</b> <span style="color:#69f0ae;">✓ {val_info.get('band_files', {}).get('B04', Path('B04')).name if val_info.get('format') == 'separate_bands' else 'Band 3'}</span></div>
-                                <div>• <b>B08 (NIR 10m):</b> <span style="color:#69f0ae;">✓ {val_info.get('band_files', {}).get('B08', Path('B08')).name if val_info.get('format') == 'separate_bands' else 'Band 4'}</span></div>
-                                <div>• <b>Pixel Size:</b> ~10.0m GSD <span style="color:#69f0ae;">✓ ({val_info['resolution'][0]:.1f}m × {val_info['resolution'][1]:.1f}m)</span></div>
-                                <div>• <b>CRS:</b> <span style="color:#69f0ae;">✓ {val_info['crs']}</span></div>
-                                <div>• <b>Dimensions:</b> <span style="color:#69f0ae;">✓ {val_info['shape'][1]} × {val_info['shape'][0]} px</span></div>
-                                <div>• <b>Channels:</b> <span style="color:#69f0ae;">✓ 4 Validated MSI Bands</span></div>
+                            <div class="upload-grid">
+                                <div class="upload-grid-item"><span class="upload-grid-k">B02 (Blue 10m):</span><span class="upload-grid-v">✓ {val_info.get('band_files', {}).get('B02', Path('B02')).name if val_info.get('format') == 'separate_bands' else 'Band 1'}</span></div>
+                                <div class="upload-grid-item"><span class="upload-grid-k">B03 (Green 10m):</span><span class="upload-grid-v">✓ {val_info.get('band_files', {}).get('B03', Path('B03')).name if val_info.get('format') == 'separate_bands' else 'Band 2'}</span></div>
+                                <div class="upload-grid-item"><span class="upload-grid-k">B04 (Red 10m):</span><span class="upload-grid-v">✓ {val_info.get('band_files', {}).get('B04', Path('B04')).name if val_info.get('format') == 'separate_bands' else 'Band 3'}</span></div>
+                                <div class="upload-grid-item"><span class="upload-grid-k">B08 (NIR 10m):</span><span class="upload-grid-v">✓ {val_info.get('band_files', {}).get('B08', Path('B08')).name if val_info.get('format') == 'separate_bands' else 'Band 4'}</span></div>
+                                <div class="upload-grid-item"><span class="upload-grid-k">Pixel Size:</span><span class="upload-grid-v">~10.0m GSD ({val_info['resolution'][0]:.1f}m × {val_info['resolution'][1]:.1f}m)</span></div>
+                                <div class="upload-grid-item"><span class="upload-grid-k">CRS:</span><span class="upload-grid-v">{val_info['crs']}</span></div>
+                                <div class="upload-grid-item"><span class="upload-grid-k">Dimensions:</span><span class="upload-grid-v">{val_info['shape'][1]} × {val_info['shape'][0]} px</span></div>
+                                <div class="upload-grid-item"><span class="upload-grid-k">Channels:</span><span class="upload-grid-v">4 Validated MSI Bands</span></div>
                             </div>
-                            <div style="margin-top: 10px; font-size: 0.88rem; font-weight: bold; color: #b9f6ca;">
-                                🟢 Ready for Direct 2.5× Super-Resolution Inference
+                            <div style="margin-top: 10px; font-size: 0.82rem; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #34D399;">
+                                ● Ready for Direct 2.5× Super-Resolution Inference
                             </div>
                         </div>
                         """,
@@ -992,14 +1448,14 @@ def main():
                 else:
                     st.markdown(
                         f"""
-                        <div style="background: #2a0b0b; border: 1px solid #ff5252; border-radius: 8px; padding: 14px 18px; margin: 12px 0;">
-                            <div style="font-size: 1.05rem; font-weight: bold; color: #ff5252; margin-bottom: 6px;">
-                                🚨 Cannot Run Inference: Input Validation Failed
+                        <div class="upload-status-card failed">
+                            <div class="upload-card-title failed">
+                                <span>✖</span> CANNOT RUN INFERENCE: VALIDATION FAILED
                             </div>
-                            <div style="font-size: 0.88rem; color: #ffcdd2;">
+                            <div style="font-size: 0.86rem; color: #FECACA; font-family: 'Inter', sans-serif;">
                                 <b>Reason:</b> {val_err}
                             </div>
-                            <div style="margin-top: 8px; font-size: 0.80rem; color: #ef9a9a;">
+                            <div style="margin-top: 8px; font-size: 0.78rem; color: #FCA5A5;">
                                 Ensure you upload valid Level-2A Sentinel-2 files containing B02, B03, B04, and B08 with matching CRS and spatial dimensions (~10m GSD).
                             </div>
                         </div>
@@ -1047,17 +1503,39 @@ def main():
         # Pipeline Status Indicator (SIH Demo Badge)
         st.markdown(
             f"""
-            <div style="background: linear-gradient(90deg, #071e3d 0%, #1f4068 100%); border-left: 6px solid #00e5ff; border-radius: 8px; padding: 14px 20px; margin-bottom: 20px;">
-                <div style="font-size: 1.15rem; font-weight: 700; color: #00e5ff; margin-bottom: 6px;">
-                    🛰️ Pipeline Status: DIRECT REAL SENTINEL-2 SUPER-RESOLUTION
+            <div class="telemetry-ribbon">
+                <div class="ribbon-top">
+                    <div class="ribbon-title-wrap">
+                        <span class="status-dot"></span>
+                        <span class="ribbon-title">DIRECT REAL SENTINEL-2 SUPER-RESOLUTION TELEMETRY</span>
+                    </div>
+                    <span class="ribbon-badge">ZERO SYNTHETIC DEGRADATION</span>
                 </div>
-                <div style="display: flex; flex-wrap: wrap; gap: 20px; font-size: 0.88rem; color: #e0f7fa; line-height: 1.6;">
-                    <div>• <b>Inference Mode:</b> <span style="color: #00ff88; font-weight: bold;">REAL SENTINEL-2 (Direct)</span></div>
-                    <div>• <b>Synthetic Degradation:</b> <span style="color: #00ff88; font-weight: bold;">OFF</span> (Zero Blur / Downsampling)</div>
-                    <div>• <b>Model Scale:</b> 2.5× Learned Residual SR</div>
-                    <div>• <b>Input GSD:</b> 10.0m → <b>Output GSD:</b> nominal 4.0m</div>
-                    <div>• <b>Device:</b> CUDA (RTX 4060 Laptop GPU)</div>
-                    <div>• <b>Ensemble:</b> 3 trained ResidualSRNet checkpoints</div>
+                <div class="ribbon-grid">
+                    <div class="ribbon-cell">
+                        <span class="cell-label">Inference Mode</span>
+                        <span class="cell-val green">Direct Real S2 (L2A)</span>
+                    </div>
+                    <div class="ribbon-cell">
+                        <span class="cell-label">Synthetic Degradation</span>
+                        <span class="cell-val green">BYPASS (OFF)</span>
+                    </div>
+                    <div class="ribbon-cell">
+                        <span class="cell-label">Model Architecture</span>
+                        <span class="cell-val">2.5× Residual SRNet (3×)</span>
+                    </div>
+                    <div class="ribbon-cell">
+                        <span class="cell-label">Spatial Scale</span>
+                        <span class="cell-val cyan">10.00m → nominal 4.00m GSD</span>
+                    </div>
+                    <div class="ribbon-cell">
+                        <span class="cell-label">Compute Acceleration</span>
+                        <span class="cell-val">CUDA (RTX 4060)</span>
+                    </div>
+                    <div class="ribbon-cell">
+                        <span class="cell-label">Provenance Proof</span>
+                        <span class="cell-val cyan">Cryptographic Receipt</span>
+                    </div>
                 </div>
             </div>
             """,
@@ -1086,30 +1564,54 @@ def main():
         trust_overlay = (0.55 * rgb_sr_raw + 0.45 * trust_colored).astype(np.uint8)
 
         # View Mode Selector
-        st.markdown("### 🖼️ Direct Real Super-Resolution Comparison")
+        st.markdown("### Direct Real Super-Resolution Comparison")
         st.caption("Live comparison between the genuine Sentinel-2 10m observation and the 2.5× learned super-resolved 4m product.")
 
         v_col1, v_col2 = st.columns(2)
         with v_col1:
-            st.markdown("#### 1. Sentinel-2 10m (Original Observation)")
+            st.markdown(
+                """
+                <div class="viewport-header">
+                    <div class="viewport-ch-tag">CHANNEL 01 // NATIVE ACQUISITION</div>
+                    <div class="viewport-heading">Sentinel-2 10m (Original Observation)</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             st.caption(f"Raw Satellite Input [{input_10m.shape[1]}×{input_10m.shape[0]} px, 10m GSD]")
             st.image(rgb_10m_disp, caption="Original 10m Sentinel-2 Image (Nearest Enlarged)", use_container_width=True)
             st.markdown("`[INPUT]` Native medium-resolution ESA Sentinel-2 MSI observation")
 
         with v_col2:
-            st.markdown("#### 2. GeoFUSE SR 4m (Learned 2.5× Output)")
+            st.markdown(
+                """
+                <div class="viewport-header">
+                    <div class="viewport-ch-tag accent">CHANNEL 02 // GEOFUSE RECONSTRUCTION</div>
+                    <div class="viewport-heading">GeoFUSE SR 4m (Learned 2.5× Output)</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             st.caption(f"Ensemble Super-Resolved Product [{sr_4m.shape[1]}×{sr_4m.shape[0]} px, 4m GSD]")
             st.image(rgb_sr_raw, caption="Direct 2.5× Super-Resolution Output (Nominal 4m Grid)", use_container_width=True)
             st.markdown("`[OUTPUT]` Reconstructed fine-scale boundaries, building edges, and field contours")
 
         # Disagreement and Trust Map Panel
         st.markdown("---")
-        st.markdown("### 🛡️ Empirical Reliability & Uncertainty Mapping")
+        st.markdown("### Empirical Reliability & Uncertainty Mapping")
         st.caption("Inter-model disagreement reveals where ensemble predictions vary; the fused Trust/Risk map weights uncertainty, sensitivity, spectral, and edge signals.")
 
         r_col1, r_col2 = st.columns(2)
         with r_col1:
-            st.markdown("#### Ensemble Disagreement Map (Uncertainty Proxy)")
+            st.markdown(
+                """
+                <div class="viewport-header">
+                    <div class="viewport-ch-tag">EVIDENCE SIGNAL // UNCERTAINTY</div>
+                    <div class="viewport-heading">Ensemble Disagreement Map (σ)</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             im_d = plt.figure(figsize=(6, 4.5), dpi=120)
             plt.imshow(disagreement_map, cmap="magma")
             plt.colorbar(fraction=0.046, pad=0.04)
@@ -1120,16 +1622,24 @@ def main():
             st.caption("Lower values (dark) indicate unanimous model agreement; higher values (bright) mark ambiguous high-frequency transitions.")
 
         with r_col2:
-            st.markdown("#### Composite Trust / Risk Overlay")
+            st.markdown(
+                """
+                <div class="viewport-header">
+                    <div class="viewport-ch-tag accent">EVIDENCE SIGNAL // DECISION MAP</div>
+                    <div class="viewport-heading">Composite Trust / Risk Overlay</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             st.image(trust_overlay, caption=f"Empirical Trust Overlay (RdYlGn) — Composite Score: {trust_score_pct:.1f}%", use_container_width=True)
             st.caption("Green marks verified high-trust pixels; Yellow/Red highlights areas requiring human-in-the-loop review.")
 
         # Real Mode Domain Tabs
         r_tab1, r_tab2, r_tab3, r_tab4 = st.tabs([
-            "🏙️ Urban Application (Buildings & Roads)",
-            "🌾 Agriculture Application (NDVI & Fields)",
-            "🛡️ Multi-Criteria Trust Evidence",
-            "📜 Auditable Trust Receipt & Deliverables",
+            "Urban Infrastructure (Buildings & Roads)",
+            "Agricultural Intelligence (NDVI & Fields)",
+            "Multi-Criteria Trust Evidence",
+            "Auditable Trust Receipt & Deliverables",
         ])
 
         with r_tab1:
@@ -1266,9 +1776,16 @@ def main():
     else:
         st.sidebar.markdown(
             """
-            <div style="background: #1a1a2e; border: 1px solid #ff9100; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px;">
-                <div style="font-size: 0.88rem; font-weight: bold; color: #ff9100;">🔬 Mode: BENCHMARK EVALUATION</div>
-                <div style="font-size: 0.76rem; color: #b0bec5;">Degrade & Recover: <b>Synthetic 2.5x Blur & Noise</b><br>Ground Truth: <b>Unseen 10m Reference</b></div>
+            <div class="geofuse-hud-panel benchmark">
+                <div class="hud-header">
+                    <span class="status-dot amber"></span>
+                    <span class="hud-tag amber">MODE // BENCHMARK EVALUATION</span>
+                </div>
+                <div class="hud-rows">
+                    <div class="hud-row"><span class="hud-k">SIMULATION</span><span class="hud-v">Degrade & Recover</span></div>
+                    <div class="hud-row"><span class="hud-k">OPERATOR</span><span class="hud-v">Synthetic 2.5× Blur + Noise</span></div>
+                    <div class="hud-row"><span class="hud-k">BENCHMARK TARGET</span><span class="hud-v green">Unseen 10m Reference</span></div>
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1277,9 +1794,9 @@ def main():
         tile_selection_mode = st.sidebar.radio(
             "Tile Selection Scope:",
             options=[
-                "⭐ Curated Demo Highlights (Offline Fast)",
-                "🧭 Browse All 25 Scene Tiles (0..24)",
-                "📍 Custom Coordinate Box (Free X, Y Crop)",
+                "Curated Benchmark Highlights (Offline Fast)",
+                "Browse All 25 Scene Tiles (0..24)",
+                "Custom Coordinate Box (Free X, Y Crop)",
             ],
             index=0,
         )
@@ -1290,12 +1807,12 @@ def main():
         selected_idx = 0
         data = None
 
-        if tile_selection_mode == "⭐ Curated Demo Highlights (Offline Fast)":
+        if "Curated" in tile_selection_mode:
             tile_options = {
                 0: "Tile #0 -- Central Settlement Cluster (High Trust: 86.8%)",
                 8: "Tile #8 -- Agricultural & Rural Roads (High Trust: 86.7%)",
-                16: "Tile #16 -- Rural River Corridor (⚠️ Low Trust Warning: 86.4%)",
-                24: "Tile #24 -- Complex Terrain Transition (⚠️ Low Trust Warning: 86.0%)",
+                16: "Tile #16 -- Rural River Corridor (Low Trust Advisory: 86.4%)",
+                24: "Tile #24 -- Complex Terrain Transition (Low Trust Advisory: 86.0%)",
             }
             selected_idx = st.sidebar.selectbox(
                 "Select Sentinel-2 Demo Tile:",
@@ -1303,7 +1820,7 @@ def main():
                 format_func=lambda x: tile_options.get(x, f"Tile #{x}"),
             )
             data = run_cached_pipeline(selected_idx)
-        elif tile_selection_mode == "🧭 Browse All 25 Scene Tiles (0..24)":
+        elif "Browse" in tile_selection_mode:
             selected_idx = st.sidebar.selectbox(
                 "Choose Any Tile (0 to 24):",
                 options=list(range(25)),
@@ -1352,9 +1869,32 @@ def main():
 
         st.markdown(
             """
-            <div style="background: #1a1a2e; border-left: 5px solid #ff9100; border-radius: 8px; padding: 12px 18px; margin-bottom: 16px;">
-                <div style="font-size: 1.1rem; font-weight: bold; color: #ff9100;">🔬 Controlled Benchmark Simulation Mode</div>
-                <div style="font-size: 0.85rem; color: #e0e0e0;">Evaluating degrade-and-recover performance against unseen HR reference tile.</div>
+            <div class="telemetry-ribbon benchmark">
+                <div class="ribbon-top">
+                    <div class="ribbon-title-wrap">
+                        <span class="status-dot amber"></span>
+                        <span class="ribbon-title">CONTROLLED SYNTHETIC BENCHMARK SIMULATION</span>
+                    </div>
+                    <span class="ribbon-badge amber">SCIENTIFIC BASELINE VALIDATION</span>
+                </div>
+                <div class="ribbon-grid">
+                    <div class="ribbon-cell">
+                        <span class="cell-label">Evaluation Paradigm</span>
+                        <span class="cell-val">Degrade & Recover</span>
+                    </div>
+                    <div class="ribbon-cell">
+                        <span class="cell-label">Degradation Operator</span>
+                        <span class="cell-val">PSF Gaussian + 2.5× Downsample</span>
+                    </div>
+                    <div class="ribbon-cell">
+                        <span class="cell-label">Baseline Comparison</span>
+                        <span class="cell-val cyan">Bicubic vs. GeoFUSE SR</span>
+                    </div>
+                    <div class="ribbon-cell">
+                        <span class="cell-label">Verification Target</span>
+                        <span class="cell-val green">Unseen 10m Ground Truth</span>
+                    </div>
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1375,19 +1915,51 @@ def main():
         lr_rgb = to_display_rgb(lr_tile, false_color=is_false_color, stretch_bounds=stretch_bounds)
         lr_disp = cv2.resize(lr_rgb, (hr_rgb.shape[1], hr_rgb.shape[0]), interpolation=cv2.INTER_NEAREST)
 
-        st.markdown("### 🖼️ Benchmark Quad View: Input vs. Bicubic vs. GeoFUSE SR vs. Reference")
+        st.markdown("### Benchmark Quad View: Input vs. Bicubic vs. GeoFUSE SR vs. Reference")
         col_a, col_b, col_c, col_d = st.columns(4)
         with col_a:
-            st.markdown("#### 1. Degraded Pseudo-LR")
+            st.markdown(
+                """
+                <div class="viewport-header">
+                    <div class="viewport-ch-tag">VIEW 01 // INPUT</div>
+                    <div class="viewport-heading">Degraded Pseudo-LR</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             st.image(lr_disp, caption="Synthetic Degradation Input (PSF Blur + 2.5x Down + Noise)", use_container_width=True)
         with col_b:
-            st.markdown("#### 2. Bicubic Baseline")
+            st.markdown(
+                """
+                <div class="viewport-header">
+                    <div class="viewport-ch-tag">VIEW 02 // BASELINE</div>
+                    <div class="viewport-heading">Bicubic Baseline</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             st.image(bic_rgb, caption=f"Bicubic Baseline | PSNR: {bic_psnr:.2f} dB", use_container_width=True)
         with col_c:
-            st.markdown("#### 3. GeoFUSE SR (Ours)")
+            st.markdown(
+                """
+                <div class="viewport-header">
+                    <div class="viewport-ch-tag accent">VIEW 03 // GEOFUSE SR</div>
+                    <div class="viewport-heading">Learned Reconstruction</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             st.image(sr_rgb, caption=f"GeoFUSE 2.5x SR | PSNR: {sr_psnr:.2f} dB", use_container_width=True)
         with col_d:
-            st.markdown("#### 4. HR Reference Target")
+            st.markdown(
+                """
+                <div class="viewport-header">
+                    <div class="viewport-ch-tag">VIEW 04 // TARGET</div>
+                    <div class="viewport-heading">HR Reference Target</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             st.image(hr_rgb, caption="Unseen High-Resolution Reference Target", use_container_width=True)
 
 
