@@ -26,13 +26,14 @@ echo Select an execution mode:
 echo   [1] Direct Real Sentinel-2 to 4m Super Resolution (Live Direct Inference)
 echo   [2] Synthetic Degradation Benchmark (Controlled Degrade-and-Recover Evaluation)
 echo   [3] Full Verification Suite (Benchmark Pipeline + PyTest Suite)
-echo   [4] Launch Streamlit Interactive Web Dashboard (Real and Benchmark Modes)
-echo   [5] Generate Full-Scene Overview and Tile Locator Graphic
+echo   [4] Launch GeoFUSE Full-Stack Platform (FastAPI GPU Gateway + React UI)
+echo   [5] Launch Streamlit Interactive Web Dashboard (Fallback Mode)
+echo   [6] Generate Full-Scene Overview and Tile Locator Graphic
 echo.
 
 set "choice="
-set /p choice="Enter choice [1-5, default=1]: "
-if "%choice%"=="" set choice=1
+set /p choice="Enter choice [1-6, default=4]: "
+if "%choice%"=="" set choice=4
 
 REM Strip any spaces from choice
 set "choice=%choice: =%"
@@ -42,7 +43,8 @@ if "%choice%"=="2" goto :opt2
 if "%choice%"=="3" goto :opt3
 if "%choice%"=="4" goto :opt4
 if "%choice%"=="5" goto :opt5
-goto :opt1
+if "%choice%"=="6" goto :opt6
+goto :opt4
 
 :opt1
 echo.
@@ -71,11 +73,17 @@ goto :end
 
 :opt4
 echo.
+echo [LAUNCHING] GeoFUSE Full-Stack Platform...
+%PY_CMD% scripts\launch_server.py
+goto :end
+
+:opt5
+echo.
 echo [LAUNCHING] Streamlit Interactive Web Dashboard...
 %ST_CMD% run src\dashboard\app.py
 goto :end
 
-:opt5
+:opt6
 echo.
 set "tile_choice="
 set /p tile_choice="Enter tile index to highlight [0..24, default=0]: "

@@ -1,6 +1,7 @@
-# GeoFUSE SentinelGuard
+# GeoFUSE SentinelGuard (SIH 2026)
 
-**Deep Learning Based Super Resolution Mapping from Medium Resolution Satellite Imagery.**
+**Deep Learning Based Super Resolution Mapping from Medium Resolution Satellite Imagery.**  
+*Smart India Hackathon 2026 (SIH 2026)*
 
 > **Core Philosophy:** *"Sharper imagery, with evidence attached."*
 
@@ -42,21 +43,50 @@ GeoFUSE/
 
 ## Getting Started
 
-### 1. Requirements & Installation
-Ensure Python 3.10+ is installed. Install the dependencies:
-```bash
-pip install -r requirements.txt
+### 1. One-Click Production Launcher (Recommended)
+Double-click `run me.bat` in the project root (or execute via shell):
+```cmd
+"run me.bat"
 ```
-
-### 2. Run Smoke Test
-Verify environment, dependencies, and compute device detection:
+Or directly start the production gateway:
 ```bash
-python scripts/smoke_test.py
+python scripts/launch_server.py
 ```
+This automatically verifies checkpoints, checks port 8000, boots the FastAPI GPU backend, serves the production React SPA, displays hardware telemetry (CUDA / VRAM / Checkpoints / 4 local datasets), and opens `http://127.0.0.1:8000` in your default browser.
 
-### 3. Hardware Support
-- Automatically detects CUDA-capable GPUs (e.g., NVIDIA RTX 4060).
-- If a GPU is not detected or CUDA PyTorch is not present, falls back gracefully to CPU with clear notifications.
+### 2. Execution Workflows
+- **Workflow A: Preloaded Demonstration Scenes**
+  - Instant inspection of 4 local scenes (`urban_core`, `agriculture`, `temporal_april2024`, `primary_raw`).
+  - Interactive 5×5 spatial partition grid (25 tiles of 128×128 px each).
+  - Instant demo cache retrieval (< 1ms) with full multi-band layers (RGB, CIR, NDVI, Uncertainty, Risk, Building footprint mask).
+  - Real-time `Force Live GPU Inference` bypass with the 3-member ensemble on local RTX 4060.
+  - Interactive split-curtain comparison and synchronized pan/zoom at identical 1:1 geospatial footprints.
+  - Cryptographically signed Trust Receipts with direct JSON export.
+- **Workflow B: Custom User-Provided Imagery**
+  - Drag-and-drop support for multi-spectral Sentinel-2 Level-2A rasters (4 separate band files `B02`, `B03`, `B04`, `B08` or a single 4-band GeoTIFF / JP2).
+  - Strict Level-2A validation (GSD ~10m, minimum 128×128 pixels required for learned 2.5× super-resolution).
+  - Automatic macro scene overview and 5×5 interactive tile grid partitioning.
+  - Actual GPU inference with complete provenance isolation (never substitutes demo results for custom uploads).
+
+### 3. Presentation Hotkeys
+While using the Hero Viewer, presentation hotkeys allow rapid demonstration:
+- `1` : Switch to **RGB Natural Color** (B04, B03, B02)
+- `2` : Switch to **CIR False Color Infrared** (B08, B04, B03)
+- `3` : Switch to **NDVI Vegetation Index** ((B08 - B04) / (B08 + B04))
+- `Space` : Toggle between **Interactive Split Curtain** and **Side-by-Side View**
+- `F` : Toggle **Fullscreen Presentation Mode** (hides sidebars/headers, displays floating HUD)
+
+### 4. Storage & Retention Management
+- Configurable 7-day TTL and 5GB LRU storage cap protects disk usage during long demo sessions.
+- Inspect storage: `GET /api/system/storage`
+- Trigger cleanup: `POST /api/system/cleanup` (supports `dry_run=true` simulation).
+
+### 5. Streamlit Dashboard Fallback
+The original interactive Streamlit dashboard remains fully functional:
+```bash
+streamlit run src/dashboard/app.py
+```
+(Or select option `[2]` in `run me.bat`).
 
 ---
 

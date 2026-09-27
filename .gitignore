@@ -62,15 +62,16 @@ venv.bak/
 .DS_Store
 Thumbs.db
 
-# Project-specific: Raw & Processed Satellite Data (large imagery files)
+# Project-specific: Raw & Processed Satellite Data (essential sample scenes whitelisted)
 data/raw/*
 !data/raw/.gitkeep
+!data/raw/*.tif
 data/interim/*
 !data/interim/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
-data/additional_datasets/
-*.tif
+!data/additional_datasets/
+!data/additional_datasets/**
 *.tiff
 *.geojson
 
@@ -82,11 +83,15 @@ checkpoints/*
 !checkpoints/ensemble_member_*.pth
 !checkpoints/training_log_member_*.csv
 
-# Cache & Local runtime outputs
+# Cache & Local runtime outputs (demo cache whitelisted, runtime session cache ignored)
 cache/*
 !cache/.gitkeep
 outputs/*
 !outputs/.gitkeep
+!outputs/demo_cache/
+!outputs/demo_cache/**
+outputs/cache_api/
+outputs/real_inference/
 
 # Local logs & Temporary files
 *.log
@@ -96,3 +101,9 @@ outputs/*
 # Secrets and local configurations
 secrets.yaml
 .streamlit/secrets.toml
+
+# Frontend Node dependencies and build output
+frontend/node_modules/
+# Whitelist frontend/dist so a fresh clone runs out-of-the-box with pure Python (zero Node.js required)
+!frontend/dist/
+!frontend/dist/**
