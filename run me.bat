@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul 2>&1
 setlocal EnableDelayedExpansion
 title GeoFUSE SentinelGuard Launcher
 cd /d "%~dp0"
@@ -24,7 +25,7 @@ if exist ".venv_gpu\Scripts\python.exe" (
 )
 
 REM Verify dependency readiness in selected Python environment
-%PY_CMD% -c "import torch, fastapi, uvicorn" 2>nul
+"%PY_CMD%" -c "import torch, fastapi, uvicorn" 2>nul
 if errorlevel 1 (
     echo.
     echo ===============================================================================
@@ -42,12 +43,12 @@ if errorlevel 1 (
         if exist ".venv\Scripts\python.exe" (
             set "PY_CMD=.venv\Scripts\python.exe"
             echo [*] Upgrading pip...
-            !PY_CMD! -m pip install --upgrade pip
+            "!PY_CMD!" -m pip install --upgrade pip
             echo [*] Installing dependencies from requirements.txt...
-            !PY_CMD! -m pip install -r requirements.txt
-            echo [✓] Environment setup complete.
+            "!PY_CMD!" -m pip install -r requirements.txt
+            echo [OK] Environment setup complete.
         ) else (
-            echo [✗] Error: Failed to create .venv. Ensure Python 3.10-3.12 is on your system PATH.
+            echo [X] Error: Failed to create .venv. Ensure Python 3.10-3.12 is on your system PATH.
             pause
             exit /b 1
         )
@@ -87,23 +88,37 @@ if "%choice%"=="4" goto :launch_pipeline
 goto :launch_webapp
 
 :launch_webapp
-%PY_CMD% scripts\launch_server.py
+echo.
+echo [*] Launching GeoFUSE Web Application (FastAPI + React UI)...
+"%PY_CMD%" scripts\launch_server.py
+if errorlevel 1 (
+    echo.
+    echo ===============================================================================
+    echo [!] Application launcher terminated with exit code: %errorlevel%
+    echo ===============================================================================
+    pause
+)
 goto :end
 
 :launch_streamlit
 echo.
 echo [*] Starting Streamlit Interactive Dashboard...
 if exist ".venv_gpu\Scripts\streamlit.exe" (
-    .venv_gpu\Scripts\streamlit.exe run src\dashboard\app.py
+    ".venv_gpu\Scripts\streamlit.exe" run src\dashboard\app.py
 ) else (
     streamlit run src\dashboard\app.py
+)
+if errorlevel 1 (
+    echo.
+    echo [!] Streamlit exited with code: %errorlevel%
+    pause
 )
 goto :end
 
 :launch_tests
 echo.
 echo [*] Executing Full Verification Test Suite...
-%PY_CMD% -m pytest tests/ -v
+"%PY_CMD%" -m pytest tests/ -v
 echo.
 pause
 goto :end
@@ -113,4 +128,5 @@ call run_pipeline.bat
 goto :end
 
 :end
+endlocal
 exit /b 0

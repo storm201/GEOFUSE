@@ -57,7 +57,7 @@ def poll_endpoint(url: str, timeout_sec: float = 30.0, interval_sec: float = 0.3
 
 def print_banner():
     print("=" * 79)
-    print("       GeoFUSE SentinelGuard (SIH 2026) — Full-Stack Platform Launcher")
+    print("       GeoFUSE SentinelGuard (SIH 2026) - Full-Stack Platform Launcher")
     print("=" * 79)
     print()
 
@@ -73,19 +73,19 @@ def verify_prerequisites():
         frontend_dir = PROJECT_ROOT / "frontend"
         try:
             subprocess.run(["npm", "run", "build"], cwd=str(frontend_dir), check=True, shell=True)
-            print("  [✓] Frontend production bundle built successfully.")
+            print("  [OK] Frontend production bundle built successfully.")
         except Exception as e:
-            print(f"  [✗] Failed to build frontend: {e}")
+            print(f"  [X] Failed to build frontend: {e}")
             sys.exit(1)
     else:
-        print("  [✓] Frontend production bundle verified (frontend/dist/index.html).")
+        print("  [OK] Frontend production bundle verified (frontend/dist/index.html).")
 
     # Verify Checkpoints
     ckpt_files = list(CHECKPOINTS_DIR.glob("ensemble_member_*.pth"))
     if len(ckpt_files) < 3:
         print(f"  [!] Warning: Found {len(ckpt_files)}/3 ensemble checkpoints in checkpoints/.")
     else:
-        print(f"  [✓] Model checkpoints verified ({len(ckpt_files)} ensemble members present).")
+        print(f"  [OK] Model checkpoints verified ({len(ckpt_files)} ensemble members present).")
 
 
 def check_port_and_existing_instance() -> bool:
@@ -101,11 +101,32 @@ def check_port_and_existing_instance() -> bool:
         except Exception:
             pass
 
-        print(f"  [✗] Error: Port {PORT} is already in use by another application.")
-        print(f"      Please terminate the existing process using port {PORT} and try again.")
-        sys.exit(1)
+        print(f"  [!] Port {PORT} is in use by an unresponsive or previous process.")
+        print(f"  [*] Attempting to automatically free port {PORT}...")
+        if os.name == "nt":
+            try:
+                output = subprocess.check_output(f"netstat -ano | findstr :{PORT}", shell=True, text=True, errors="replace")
+                for line in output.strip().splitlines():
+                    if f":{PORT}" in line and "LISTENING" in line.upper():
+                        parts = line.strip().split()
+                        pid = parts[-1]
+                        if pid.isdigit() and int(pid) != os.getpid():
+                            print(f"  [*] Terminating stale process PID {pid} holding port {PORT}...")
+                            subprocess.run(f"taskkill /F /PID {pid}", shell=True, capture_output=True)
+                            time.sleep(1.0)
+                            break
+            except Exception as e:
+                print(f"  [!] Note on port reclamation: {e}")
 
-    print(f"  [✓] Port {PORT} is clear.")
+        if is_port_in_use(HOST, PORT):
+            print(f"  [X] Error: Port {PORT} is still occupied by another application.")
+            print(f"      Please terminate the existing process using port {PORT} and try again.")
+            sys.exit(1)
+        else:
+            print(f"  [OK] Port {PORT} has been successfully freed.")
+            return False
+
+    print(f"  [OK] Port {PORT} is clear.")
     return False
 
 
@@ -154,7 +175,7 @@ def wait_for_server_and_report(proc: subprocess.Popen):
         if proc.poll() is not None:
             # Process crashed
             out = proc.stdout.read() if proc.stdout else ""
-            print(f"  [✗] Server process exited unexpectedly with code {proc.returncode}.")
+            print(f"  [X] Server process exited unexpectedly with code {proc.returncode}.")
             print(out)
             sys.exit(1)
 
@@ -166,12 +187,12 @@ def wait_for_server_and_report(proc: subprocess.Popen):
         except Exception:
             time.sleep(0.3)
     else:
-        print("  [✗] Server health check timed out after 30 seconds.")
+        print("  [X] Server health check timed out after 30 seconds.")
         proc.terminate()
         sys.exit(1)
 
     elapsed = time.time() - start_wait
-    print(f"  [✓] FastAPI server is operational (responded in {elapsed:.2f}s).")
+    print(f"  [OK] FastAPI server is operational (responded in {elapsed:.2f}s).")
 
     # Fetch and display truthful hardware & model telemetry
     try:
@@ -233,7 +254,7 @@ def main():
                     proc.wait(timeout=3)
                 except subprocess.TimeoutExpired:
                     proc.kill()
-        print("[✓] All child processes terminated. Port 8000 released.")
+        print("[OK] All child processes terminated. Port 8000 released.")
         sys.exit(0)
 
     signal.signal(signal.SIGINT, cleanup)
@@ -258,7 +279,7 @@ def main():
     except KeyboardInterrupt:
         cleanup()
     except Exception as e:
-        print(f"\n[✗] Unexpected error: {e}")
+        print(f"\n[X] Unexpected error: {e}")
         cleanup()
 
 
