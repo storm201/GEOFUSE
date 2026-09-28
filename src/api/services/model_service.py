@@ -11,6 +11,7 @@ Includes an explicit async execution lock to serialize GPU inference requests on
 from contextlib import asynccontextmanager
 import asyncio
 from pathlib import Path
+import threading
 from typing import List, Optional
 import torch
 import torch.nn as nn
@@ -27,9 +28,15 @@ class ModelService:
         self._models: Optional[List[nn.Module]] = None
         self._device: Optional[torch.device] = None
         self._semaphore: Optional[asyncio.Semaphore] = None
+        self._gpu_thread_lock = threading.Lock()
         self._active_inferences: int = 0
         self._queue_depth: int = 0
         self._loaded: bool = False
+
+    @property
+    def gpu_thread_lock(self) -> threading.Lock:
+        """OS thread-level lock serializing concurrent CUDA model executions."""
+        return self._gpu_thread_lock
 
     @property
     def semaphore(self) -> asyncio.Semaphore:

@@ -100,7 +100,6 @@ export default function App() {
       const initialInference = await runTileInference(sceneId, 0, false, abortCtrl.signal);
       if (currentToken === tileRequestTokenRef.current) {
         setPreloadedResult(initialInference);
-        setLoading(false);
       }
     } catch (err) {
       if (err.name === "AbortError" || err.message?.includes("aborted")) {
@@ -108,6 +107,9 @@ export default function App() {
       }
       if (currentToken === tileRequestTokenRef.current) {
         setError(`Failed to load scene grid: ${err.message}`);
+      }
+    } finally {
+      if (currentToken === tileRequestTokenRef.current) {
         setLoading(false);
       }
     }
@@ -140,7 +142,6 @@ export default function App() {
       const res = await runTileInference(selectedSceneId, tileId, false, abortCtrl.signal);
       if (currentToken === tileRequestTokenRef.current) {
         setPreloadedResult(res);
-        setLoading(false);
       }
     } catch (err) {
       if (err.name === "AbortError" || err.message?.includes("aborted")) {
@@ -148,6 +149,9 @@ export default function App() {
       }
       if (currentToken === tileRequestTokenRef.current) {
         setError(`Inference failed on tile #${tileId}: ${err.message}`);
+      }
+    } finally {
+      if (currentToken === tileRequestTokenRef.current) {
         setLoading(false);
       }
     }
@@ -163,6 +167,7 @@ export default function App() {
     const currentToken = ++tileRequestTokenRef.current;
 
     setIsForceLiveRunning(true);
+    setLoading(true);
     setError(null);
 
     try {
@@ -180,6 +185,7 @@ export default function App() {
     } finally {
       if (currentToken === tileRequestTokenRef.current) {
         setIsForceLiveRunning(false);
+        setLoading(false);
       }
     }
   };
@@ -199,12 +205,12 @@ export default function App() {
     setCustomTileId(0);
     setCustomLoading(true);
     setCustomError(null);
+    setCustomResult(null);
 
     try {
       const initialCustomRes = await runTileInference(valInfo.scene_id, 0, false, abortCtrl.signal);
       if (currentToken === customTileRequestTokenRef.current) {
         setCustomResult(initialCustomRes);
-        setCustomLoading(false);
       }
     } catch (err) {
       if (err.name === "AbortError" || err.message?.includes("aborted")) {
@@ -212,6 +218,9 @@ export default function App() {
       }
       if (currentToken === customTileRequestTokenRef.current) {
         setCustomError(`Inference failed on uploaded scene tile #00: ${err.message}`);
+      }
+    } finally {
+      if (currentToken === customTileRequestTokenRef.current) {
         setCustomLoading(false);
       }
     }
@@ -239,7 +248,6 @@ export default function App() {
       const res = await runTileInference(customSceneInfo.scene_id, tileId, false, abortCtrl.signal);
       if (currentToken === customTileRequestTokenRef.current) {
         setCustomResult(res);
-        setCustomLoading(false);
       }
     } catch (err) {
       if (err.name === "AbortError" || err.message?.includes("aborted")) {
@@ -247,6 +255,9 @@ export default function App() {
       }
       if (currentToken === customTileRequestTokenRef.current) {
         setCustomError(`Custom inference failed on tile #${tileId}: ${err.message}`);
+      }
+    } finally {
+      if (currentToken === customTileRequestTokenRef.current) {
         setCustomLoading(false);
       }
     }
@@ -263,6 +274,7 @@ export default function App() {
     const currentToken = ++customTileRequestTokenRef.current;
 
     setCustomIsForceLiveRunning(true);
+    setCustomLoading(true);
     setCustomError(null);
 
     try {
@@ -280,16 +292,22 @@ export default function App() {
     } finally {
       if (currentToken === customTileRequestTokenRef.current) {
         setCustomIsForceLiveRunning(false);
+        setCustomLoading(false);
       }
     }
   };
 
   // Reset custom upload state
   const handleResetCustomUpload = () => {
+    if (customTileAbortRef.current) {
+      customTileAbortRef.current.abort();
+    }
     setCustomSceneInfo(null);
     setCustomResult(null);
     setCustomTileId(0);
     setCustomError(null);
+    setCustomLoading(false);
+    setCustomIsForceLiveRunning(false);
     setInputWorkflow("preloaded");
   };
 
@@ -331,6 +349,7 @@ export default function App() {
             onTogglePresentation={() => setIsPresentationMode((prev) => !prev)}
             onForceLive={inputWorkflow === "preloaded" ? handlePreloadedForceLive : handleCustomForceLive}
             isForceLiveRunning={inputWorkflow === "preloaded" ? isForceLiveRunning : customIsForceLiveRunning}
+            isLoading={inputWorkflow === "preloaded" ? (loading || isForceLiveRunning) : (customLoading || customIsForceLiveRunning)}
             selectedTileId={activeTileId}
           />
         )}

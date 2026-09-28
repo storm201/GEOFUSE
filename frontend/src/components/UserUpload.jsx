@@ -31,6 +31,12 @@ export default function UserUpload({ onSceneValidated }) {
     try {
       const valResp = await validateCustomScene(fileList);
       setValidationInfo(valResp);
+      if (valResp && valResp.is_valid && onSceneValidated) {
+        // Automatically proceed to workstation so user sees tiles and super-resolved imagery immediately
+        setTimeout(() => {
+          onSceneValidated(valResp);
+        }, 500);
+      }
     } catch (err) {
       setValidationError(err.message || "Failed to validate Sentinel-2 imagery.");
     } finally {

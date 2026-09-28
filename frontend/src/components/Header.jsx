@@ -24,6 +24,7 @@ export default function Header({
   onTogglePresentation,
   onForceLive,
   isForceLiveRunning,
+  isLoading,
   selectedTileId
 }) {
   const isCuda = systemStatus?.cuda_available ?? true;
@@ -103,12 +104,12 @@ export default function Header({
             <button
               className="action-btn recalibrate-btn"
               onClick={() => onForceLive(selectedTileId)}
-              disabled={isForceLiveRunning}
+              disabled={isForceLiveRunning || isLoading}
               title="Force live PyTorch GPU forward pass"
               type="button"
             >
-              <RefreshCw size={13} className={isForceLiveRunning ? "spin-animation" : ""} />
-              <span>{isForceLiveRunning ? "PASS..." : "LIVE PASS"}</span>
+              <RefreshCw size={13} className={(isForceLiveRunning || isLoading) ? "spin-animation" : ""} />
+              <span>{(isForceLiveRunning || isLoading) ? "INFERRING..." : "LIVE PASS"}</span>
             </button>
           )}
 

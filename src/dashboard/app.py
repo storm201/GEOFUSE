@@ -2242,7 +2242,8 @@ def main():
                             cy_u = st.number_input("Crop Y:", min_value=0, max_value=max(0, h_up - 128), value=0, step=16)
                             up_coords = (int(cx_u), int(cy_u))
 
-                    if st.button("🚀 Run GeoFUSE 10m → 4m Direct Super-Resolution", type="primary", use_container_width=True):
+                    run_clicked = st.button("🚀 Run GeoFUSE 10m → 4m Direct Super-Resolution", type="primary", use_container_width=True)
+                    if run_clicked or ("custom_upload_result" not in st.session_state):
                         status_box = st.empty()
                         progress_bar = st.progress(0.0)
 
@@ -2268,8 +2269,13 @@ def main():
                     if "custom_upload_result" in st.session_state:
                         data = st.session_state["custom_upload_result"]
                         selected_key = f"uploaded_{upload_hash[:8]}"
+                    else:
+                        data = run_real_sentinel2_pipeline_cached(scene_key="urban_core", tile_size=128)
+                        selected_key = "urban_core"
                 else:
                     st.error(f"Validation Failed: {val_err}. Please ensure 4 matching Level-2A 10m bands are provided.")
+                    data = run_real_sentinel2_pipeline_cached(scene_key="urban_core", tile_size=128)
+                    selected_key = "urban_core"
 
             else:
                 st.info("ℹ️ Drag and drop your Sentinel-2 band files into the dashed box above to process your custom scene. Showing pre-loaded reference below.")

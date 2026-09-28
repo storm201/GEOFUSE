@@ -527,6 +527,7 @@ export default function HeroViewer({
                   <div className="spatial-transform-layer" style={sharedTransformStyle}>
                     {leftImage && (
                       <img
+                        key={leftImage}
                         src={leftImage}
                         alt={leftLabel}
                         className="raster-layer layer-10m"
@@ -544,6 +545,7 @@ export default function HeroViewer({
                   <div className="spatial-transform-layer" style={sharedTransformStyle}>
                     {rightImage && (
                       <img
+                        key={rightImage}
                         src={rightImage}
                         alt={rightLabel}
                         className="raster-layer layer-4m"
@@ -572,6 +574,7 @@ export default function HeroViewer({
                   {/* Left/Bottom Layer: 10m Input */}
                   {leftImage && (
                     <img
+                      key={leftImage}
                       src={leftImage}
                       alt={leftLabel}
                       className="curtain-layer layer-10m"
@@ -582,6 +585,7 @@ export default function HeroViewer({
                   {/* Right/Top Layer: 4m SR (Clipped by slider position) */}
                   {rightImage && (
                     <img
+                      key={rightImage}
                       src={rightImage}
                       alt={rightLabel}
                       className="curtain-layer layer-4m"

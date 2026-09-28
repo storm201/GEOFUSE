@@ -10,12 +10,14 @@ Orchestrates:
 7. Clean child process termination on exit (zero orphan processes).
 """
 
+import collections
 import json
 import os
 import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -27,6 +29,9 @@ HOST = "127.0.0.1"
 PORT = 8000
 FRONTEND_DIST = PROJECT_ROOT / "frontend" / "dist"
 CHECKPOINTS_DIR = PROJECT_ROOT / "checkpoints"
+
+# Ring buffer for recent server logs (for diagnostic reporting on crashes)
+RECENT_SERVER_LOGS = collections.deque(maxlen=100)
 
 
 def is_port_in_use(host: str, port: int) -> bool:
@@ -130,8 +135,25 @@ def check_port_and_existing_instance() -> bool:
     return False
 
 
+def _start_log_streamer(proc: subprocess.Popen):
+    """Continuously drain child stdout to console and ring buffer to prevent pipe deadlock."""
+    def _reader():
+        try:
+            for line in iter(proc.stdout.readline, ""):
+                if not line:
+                    break
+                RECENT_SERVER_LOGS.append(line)
+                sys.stdout.write(line)
+                sys.stdout.flush()
+        except Exception:
+            pass
+
+    t = threading.Thread(target=_reader, name="UvicornLogStreamer", daemon=True)
+    t.start()
+
+
 def start_server() -> subprocess.Popen:
-    """Start Uvicorn FastAPI server as a managed child process."""
+    """Start Uvicorn FastAPI server as a managed child process with active log draining."""
     print("[3/5] Starting FastAPI GPU Gateway...")
     cmd = [
         sys.executable,
@@ -160,6 +182,9 @@ def start_server() -> subprocess.Popen:
         text=True,
         bufsize=1,
     )
+
+    # Immediately start non-blocking stream thread so OS pipe buffer never fills up
+    _start_log_streamer(proc)
     return proc
 
 
@@ -174,9 +199,10 @@ def wait_for_server_and_report(proc: subprocess.Popen):
     while time.time() - start_wait < 30.0:
         if proc.poll() is not None:
             # Process crashed
-            out = proc.stdout.read() if proc.stdout else ""
             print(f"  [X] Server process exited unexpectedly with code {proc.returncode}.")
-            print(out)
+            recent = "".join(RECENT_SERVER_LOGS)
+            if recent:
+                print(recent)
             sys.exit(1)
 
         try:

@@ -107,22 +107,30 @@ class InferenceService:
         start_time: float,
     ) -> TileInferenceResponse:
         """Synchronously execute PyTorch forward pass, trust verification, building extraction, and WebP generation on worker thread."""
-        models = model_service.get_models()
-        device = model_service.get_device()
+        with model_service.gpu_thread_lock:
+            models = model_service.get_models()
+            device = model_service.get_device()
 
-        with torch.inference_mode():
-            # Direct 2.5x learned SR (ZERO synthetic degradation)
-            sr_4m, disag_map = run_direct_sr_tile(models, sub_10m, device=device)
+            with torch.inference_mode():
+                # Direct 2.5x learned SR (ZERO synthetic degradation)
+                sr_4m, disag_map = run_direct_sr_tile(models, sub_10m, device=device)
 
-        # Empirical Trust Evaluation (no fake ground truth)
-        trust_data = compute_real_inference_trust(
-            sr_4m=sr_4m,
-            lr_10m=sub_10m,
-            disagreement_map=disag_map,
-            models=models,
-            device=device,
-            config=CORE_CONFIG,
-        )
+            # Empirical Trust Evaluation (no fake ground truth)
+            trust_data = compute_real_inference_trust(
+                sr_4m=sr_4m,
+                lr_10m=sub_10m,
+                disagreement_map=disag_map,
+                models=models,
+                device=device,
+                config=CORE_CONFIG,
+            )
+
+            # Safe VRAM cleanup strictly under GPU lock
+            if device.type == "cuda":
+                try:
+                    torch.cuda.empty_cache()
+                except Exception:
+                    pass
 
         latency_ms = (time.perf_counter() - start_time) * 1000.0
 
@@ -247,21 +255,29 @@ class InferenceService:
         start_time: float,
     ) -> TileInferenceResponse:
         """Synchronously execute custom uploaded imagery forward pass and asset saving on worker thread."""
-        models = model_service.get_models()
-        device = model_service.get_device()
+        with model_service.gpu_thread_lock:
+            models = model_service.get_models()
+            device = model_service.get_device()
 
-        with torch.inference_mode():
-            sr_4m, disag_map = run_direct_sr_tile(models, sub_10m, device=device)
+            with torch.inference_mode():
+                sr_4m, disag_map = run_direct_sr_tile(models, sub_10m, device=device)
 
-        # Empirical Trust Evaluation
-        trust_data = compute_real_inference_trust(
-            sr_4m=sr_4m,
-            lr_10m=sub_10m,
-            disagreement_map=disag_map,
-            models=models,
-            device=device,
-            config=CORE_CONFIG,
-        )
+            # Empirical Trust Evaluation
+            trust_data = compute_real_inference_trust(
+                sr_4m=sr_4m,
+                lr_10m=sub_10m,
+                disagreement_map=disag_map,
+                models=models,
+                device=device,
+                config=CORE_CONFIG,
+            )
+
+            # Safe VRAM cleanup strictly under GPU lock
+            if device.type == "cuda":
+                try:
+                    torch.cuda.empty_cache()
+                except Exception:
+                    pass
 
         latency_ms = (time.perf_counter() - start_time) * 1000.0
 
