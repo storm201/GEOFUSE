@@ -1,11 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Map, UploadCloud, RotateCcw, Zap } from "lucide-react";
+import { Map, UploadCloud, RotateCcw, Zap, Layers } from "lucide-react";
+import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import SceneNavigator from "./components/SceneNavigator";
 import HeroViewer from "./components/HeroViewer";
 import TrustPanel from "./components/TrustPanel";
 import ReceiptModal from "./components/ReceiptModal";
 import BenchmarkView from "./components/BenchmarkView";
+import TrustMatrixView from "./components/TrustMatrixView";
+import PipelineDiagnosticsView from "./components/PipelineDiagnosticsView";
+import BuildingAnalyticsView from "./components/BuildingAnalyticsView";
+import IngestionModal from "./components/IngestionModal";
 import UserUpload from "./components/UserUpload";
 import { getSystemStatus, getScenes, getSceneGrid, runTileInference } from "./services/api";
 
@@ -16,9 +21,12 @@ export default function App() {
   const [gridData, setGridData] = useState(null);
   const [selectedTileId, setSelectedTileId] = useState(0);
   const [preloadedResult, setPreloadedResult] = useState(null);
-  const [currentMode, setCurrentMode] = useState("real"); // "real" | "benchmark"
 
-  // First-class dual workflow: "preloaded" vs "user_input"
+  // Active View Navigation across the 7 Stitch Screens:
+  // "workstation" | "trust-matrix" | "pipeline" | "benchmark" | "building-analytics"
+  const [activeView, setActiveView] = useState("workstation");
+
+  // Dual workflow: "preloaded" vs "user_input"
   const [inputWorkflow, setInputWorkflow] = useState("preloaded");
   const [customSceneInfo, setCustomSceneInfo] = useState(null);
   const [customTileId, setCustomTileId] = useState(0);
@@ -30,10 +38,13 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [isForceLiveRunning, setIsForceLiveRunning] = useState(false);
   const [error, setError] = useState(null);
+
+  // Modals
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+  const [ingestionModalOpen, setIngestionModalOpen] = useState(false);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
 
-  // Request tokens and AbortControllers to cancel and invalidate stale tile requests
+  // Request tokens and AbortControllers
   const tileAbortRef = useRef(null);
   const tileRequestTokenRef = useRef(0);
   const customTileAbortRef = useRef(null);
@@ -110,19 +121,15 @@ export default function App() {
 
   // Handle Preloaded Tile Selection with Stale Guard & AbortController
   const handleTileSelect = async (tileId) => {
-    // Redundant click guard: if already on this tile, have results, and not in error, skip
     if (tileId === selectedTileId && preloadedResult && !error && !loading) {
       return;
     }
 
-    // Abort previous in-flight request if any
     if (tileAbortRef.current) {
       tileAbortRef.current.abort();
     }
     const abortCtrl = new AbortController();
     tileAbortRef.current = abortCtrl;
-
-    // Monotonic request token
     const currentToken = ++tileRequestTokenRef.current;
 
     setSelectedTileId(tileId);
@@ -131,14 +138,12 @@ export default function App() {
 
     try {
       const res = await runTileInference(selectedSceneId, tileId, false, abortCtrl.signal);
-      // Strictly ignore result if user selected another tile since this request started
       if (currentToken === tileRequestTokenRef.current) {
         setPreloadedResult(res);
         setLoading(false);
       }
     } catch (err) {
       if (err.name === "AbortError" || err.message?.includes("aborted")) {
-        // Request was aborted by newer tile click; ignore silently
         return;
       }
       if (currentToken === tileRequestTokenRef.current) {
@@ -188,6 +193,8 @@ export default function App() {
     customTileAbortRef.current = abortCtrl;
     const currentToken = ++customTileRequestTokenRef.current;
 
+    setInputWorkflow("user_input");
+    setActiveView("workstation");
     setCustomSceneInfo(valInfo);
     setCustomTileId(0);
     setCustomLoading(true);
@@ -277,182 +284,248 @@ export default function App() {
     }
   };
 
-  // Reset custom upload state to allow uploading another scene
+  // Reset custom upload state
   const handleResetCustomUpload = () => {
     setCustomSceneInfo(null);
     setCustomResult(null);
     setCustomTileId(0);
     setCustomError(null);
+    setInputWorkflow("preloaded");
   };
 
-  // Active result for the receipt modal
-  const activeReceiptId =
-    inputWorkflow === "preloaded"
-      ? preloadedResult?.receipt_id
-      : customResult?.receipt_id;
+  // Active result for the receipt modal & HUD
+  const activeResult =
+    inputWorkflow === "preloaded" ? preloadedResult : customResult;
+  const activeReceiptId = activeResult?.receipt_id;
+  const activeTileId = inputWorkflow === "preloaded" ? selectedTileId : customTileId;
+  const activeSceneId = inputWorkflow === "preloaded" ? selectedSceneId : (customSceneInfo?.scene_id || "custom");
 
   return (
-    <div className="app-container">
-      {/* Top Header Command Bar */}
+    <div className="stitch-app-shell">
+      {/* Tactical Left Sidebar Navigation (Screens 1 to 7 selector) */}
       {!isPresentationMode && (
-        <Header
+        <Sidebar
+          activeView={activeView}
+          onViewChange={setActiveView}
+          onOpenIngestionModal={() => setIngestionModalOpen(true)}
           systemStatus={systemStatus}
-          currentMode={currentMode}
-          onModeChange={setCurrentMode}
+          preloadedResult={preloadedResult}
+          customResult={customResult}
+          inputWorkflow={inputWorkflow}
         />
       )}
 
-      {/* Main Mode Views */}
-      {currentMode === "real" ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem", flex: 1 }}>
-          {/* First-Class Entry Point Selector: [ Preloaded Scenes ] vs [ User Input ] */}
-          {!isPresentationMode && (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: "0.75rem",
-                padding: "0.25rem 0",
-              }}
-            >
-              <div className="mode-switcher-bar">
-                <button
-                  className={`mode-switch-btn ${inputWorkflow === "preloaded" ? "active" : ""}`}
-                  onClick={() => setInputWorkflow("preloaded")}
-                >
-                  <Map size={15} />
-                  <span>Preloaded Scenes (5×5 Grid)</span>
-                </button>
-                <button
-                  className={`mode-switch-btn ${inputWorkflow === "user_input" ? "active" : ""}`}
-                  onClick={() => setInputWorkflow("user_input")}
-                >
-                  <UploadCloud size={15} />
-                  <span>User Input (Upload GeoTIFF)</span>
-                  {customResult && <span className="source-tag user_input">Ready</span>}
-                </button>
-              </div>
+      {/* Main Layout Area */}
+      <div className={`main-wrapper-layout ${isPresentationMode ? "fullscreen" : ""}`}>
+        {/* Top Header Command Bar */}
+        {!isPresentationMode && (
+          <Header
+            systemStatus={systemStatus}
+            activeView={activeView}
+            onViewChange={setActiveView}
+            inputWorkflow={inputWorkflow}
+            onWorkflowChange={setInputWorkflow}
+            onOpenReceipt={() => setReceiptModalOpen(true)}
+            onOpenIngestionModal={() => setIngestionModalOpen(true)}
+            isPresentationMode={isPresentationMode}
+            onTogglePresentation={() => setIsPresentationMode((prev) => !prev)}
+            onForceLive={inputWorkflow === "preloaded" ? handlePreloadedForceLive : handleCustomForceLive}
+            isForceLiveRunning={inputWorkflow === "preloaded" ? isForceLiveRunning : customIsForceLiveRunning}
+            selectedTileId={activeTileId}
+          />
+        )}
 
-              {/* In User Input workflow with an active scene: quick action buttons */}
-              {inputWorkflow === "user_input" && customSceneInfo && (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <button
-                    className="btn-secondary"
-                    style={{ fontSize: "0.8rem", padding: "0.35rem 0.8rem" }}
-                    onClick={handleResetCustomUpload}
-                  >
-                    <RotateCcw size={14} />
-                    Upload Another Scene
-                  </button>
+        {/* View Router */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+          {/* SCREEN 1: Workstation */}
+          {activeView === "workstation" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1, padding: "0.5rem" }}>
+              {/* Dual Workflow Switcher Strip */}
+              {!isPresentationMode && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "0.75rem",
+                    padding: "0.25rem 0.5rem",
+                  }}
+                >
+                  <div className="mode-switcher-bar">
+                    <button
+                      className={`mode-switch-btn ${inputWorkflow === "preloaded" ? "active" : ""}`}
+                      onClick={() => setInputWorkflow("preloaded")}
+                      type="button"
+                    >
+                      <Map size={15} />
+                      <span>Preloaded Scenes (5×5 Grid)</span>
+                    </button>
+                    <button
+                      className={`mode-switch-btn ${inputWorkflow === "user_input" ? "active" : ""}`}
+                      onClick={() => setInputWorkflow("user_input")}
+                      type="button"
+                    >
+                      <UploadCloud size={15} />
+                      <span>User Input (Upload GeoTIFF)</span>
+                      {customResult && <span className="source-tag user_input">Ready</span>}
+                    </button>
+                  </div>
+
+                  {inputWorkflow === "user_input" && customSceneInfo && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <button
+                        className="btn-secondary"
+                        style={{ fontSize: "0.8rem", padding: "0.35rem 0.8rem" }}
+                        onClick={handleResetCustomUpload}
+                        type="button"
+                      >
+                        <RotateCcw size={14} />
+                        Upload Another Scene
+                      </button>
+                    </div>
+                  )}
                 </div>
+              )}
+
+              {/* Workflow A: Preloaded Sentinel-2 Scenes */}
+              {inputWorkflow === "preloaded" && (
+                <main className={`main-workspace ${isPresentationMode ? "presentation-active" : ""}`}>
+                  {!isPresentationMode && (
+                    <SceneNavigator
+                      scenes={scenes}
+                      selectedSceneId={selectedSceneId}
+                      onSceneChange={handleSceneChange}
+                      gridData={gridData}
+                      selectedTileId={selectedTileId}
+                      onTileSelect={handleTileSelect}
+                      loading={loading}
+                    />
+                  )}
+
+                  <HeroViewer
+                    inferenceResult={preloadedResult}
+                    loading={loading}
+                    error={error}
+                    onForceLive={handlePreloadedForceLive}
+                    isForceLiveRunning={isForceLiveRunning}
+                    isPresentationMode={isPresentationMode}
+                    onTogglePresentation={() => setIsPresentationMode((prev) => !prev)}
+                    onLoadDemoCache={() => handleTileSelect(0)}
+                    sceneMetadata={scenes.find((s) => s.scene_id === selectedSceneId)}
+                    tileInfo={gridData?.tiles?.find((t) => t.tile_id === selectedTileId)}
+                  />
+
+                  {!isPresentationMode && (
+                    <TrustPanel
+                      inferenceResult={preloadedResult}
+                      onOpenReceipt={() => setReceiptModalOpen(true)}
+                      onForceLive={handlePreloadedForceLive}
+                      isForceLiveRunning={isForceLiveRunning}
+                    />
+                  )}
+                </main>
+              )}
+
+              {/* Workflow B: User-Provided Input */}
+              {inputWorkflow === "user_input" && (
+                <>
+                  {customSceneInfo ? (
+                    <main className={`main-workspace ${isPresentationMode ? "presentation-active" : ""}`}>
+                      {!isPresentationMode && (
+                        <SceneNavigator
+                          scenes={[]}
+                          selectedSceneId={customSceneInfo.scene_id}
+                          onSceneChange={() => {}}
+                          gridData={customSceneInfo.grid}
+                          selectedTileId={customTileId}
+                          onTileSelect={handleCustomTileSelect}
+                          loading={customLoading}
+                        />
+                      )}
+
+                      <HeroViewer
+                        inferenceResult={customResult}
+                        loading={customLoading}
+                        error={customError}
+                        onForceLive={handleCustomForceLive}
+                        isForceLiveRunning={customIsForceLiveRunning}
+                        isPresentationMode={isPresentationMode}
+                        onTogglePresentation={() => setIsPresentationMode((prev) => !prev)}
+                        sceneMetadata={customSceneInfo}
+                        tileInfo={customSceneInfo?.grid?.tiles?.find((t) => t.tile_id === customTileId)}
+                      />
+
+                      {!isPresentationMode && (
+                        <TrustPanel
+                          inferenceResult={customResult}
+                          onOpenReceipt={() => setReceiptModalOpen(true)}
+                          onForceLive={handleCustomForceLive}
+                          isForceLiveRunning={customIsForceLiveRunning}
+                        />
+                      )}
+                    </main>
+                  ) : (
+                    <UserUpload onSceneValidated={handleCustomSceneValidated} />
+                  )}
+                </>
               )}
             </div>
           )}
 
-          {/* Workflow A: Preloaded Sentinel-2 Scenes */}
-          {inputWorkflow === "preloaded" && (
-            <main className={`main-workspace ${isPresentationMode ? "presentation-active" : ""}`}>
-              {/* Left Column: Scene & Tile Navigator */}
-              {!isPresentationMode && (
-                <SceneNavigator
-                  scenes={scenes}
-                  selectedSceneId={selectedSceneId}
-                  onSceneChange={handleSceneChange}
-                  gridData={gridData}
-                  selectedTileId={selectedTileId}
-                  onTileSelect={handleTileSelect}
-                  loading={loading}
-                />
-              )}
-
-              {/* Center Column: Hero Comparison Visualizer */}
-              <HeroViewer
-                inferenceResult={preloadedResult}
-                loading={loading}
-                error={error}
-                onForceLive={handlePreloadedForceLive}
-                isForceLiveRunning={isForceLiveRunning}
-                isPresentationMode={isPresentationMode}
-                onTogglePresentation={() => setIsPresentationMode((prev) => !prev)}
-                onLoadDemoCache={() => handleTileSelect(0)}
-                sceneMetadata={scenes.find((s) => s.scene_id === selectedSceneId)}
-                tileInfo={gridData?.tiles?.find((t) => t.tile_id === selectedTileId)}
-              />
-
-              {/* Right Column: Trust & Evidence HUD */}
-              {!isPresentationMode && (
-                <TrustPanel
-                  inferenceResult={preloadedResult}
-                  onOpenReceipt={() => setReceiptModalOpen(true)}
-                  onForceLive={handlePreloadedForceLive}
-                  isForceLiveRunning={isForceLiveRunning}
-                />
-              )}
-            </main>
+          {/* SCREEN 2: Trust & Verification Matrix */}
+          {activeView === "trust-matrix" && (
+            <TrustMatrixView
+              inferenceResult={activeResult}
+              onOpenReceipt={() => setReceiptModalOpen(true)}
+              onForceLive={inputWorkflow === "preloaded" ? handlePreloadedForceLive : handleCustomForceLive}
+              isForceLiveRunning={inputWorkflow === "preloaded" ? isForceLiveRunning : customIsForceLiveRunning}
+              selectedSceneId={activeSceneId}
+              selectedTileId={activeTileId}
+            />
           )}
 
-          {/* Workflow B: User-Provided Input */}
-          {inputWorkflow === "user_input" && (
-            <>
-              {customSceneInfo ? (
-                /* User Input Scene Active: Render Identical Interactive Workspace */
-                <main className={`main-workspace ${isPresentationMode ? "presentation-active" : ""}`}>
-                  {/* Left Column: Custom Scene Tile Navigator */}
-                  {!isPresentationMode && (
-                    <SceneNavigator
-                      scenes={[]}
-                      selectedSceneId={customSceneInfo.scene_id}
-                      onSceneChange={() => {}}
-                      gridData={customSceneInfo.grid}
-                      selectedTileId={customTileId}
-                      onTileSelect={handleCustomTileSelect}
-                      loading={customLoading}
-                    />
-                  )}
+          {/* SCREEN 4: Benchmark Lab */}
+          {activeView === "benchmark" && <BenchmarkView />}
 
-                  {/* Center Column: Hero Comparison Visualizer with Shared Viewport */}
-                  <HeroViewer
-                    inferenceResult={customResult}
-                    loading={customLoading}
-                    error={customError}
-                    onForceLive={handleCustomForceLive}
-                    isForceLiveRunning={customIsForceLiveRunning}
-                    isPresentationMode={isPresentationMode}
-                    onTogglePresentation={() => setIsPresentationMode((prev) => !prev)}
-                    sceneMetadata={customSceneInfo}
-                    tileInfo={customSceneInfo?.grid?.tiles?.find((t) => t.tile_id === customTileId)}
-                  />
+          {/* SCREEN 5: Spectral Pipeline Diagnostics */}
+          {activeView === "pipeline" && (
+            <PipelineDiagnosticsView
+              systemStatus={systemStatus}
+              preloadedResult={activeResult}
+              selectedSceneId={activeSceneId}
+              selectedTileId={activeTileId}
+            />
+          )}
 
-                  {/* Right Column: Authentic Trust & Evidence HUD */}
-                  {!isPresentationMode && (
-                    <TrustPanel
-                      inferenceResult={customResult}
-                      onOpenReceipt={() => setReceiptModalOpen(true)}
-                      onForceLive={handleCustomForceLive}
-                      isForceLiveRunning={customIsForceLiveRunning}
-                    />
-                  )}
-                </main>
-              ) : (
-                /* No custom scene uploaded yet: Render Drag & Drop Upload Zone */
-                <UserUpload onSceneValidated={handleCustomSceneValidated} />
-              )}
-            </>
+          {/* SCREEN 7: Downstream Building Analytics */}
+          {activeView === "building-analytics" && (
+            <BuildingAnalyticsView
+              inferenceResult={activeResult}
+              onForceLive={inputWorkflow === "preloaded" ? handlePreloadedForceLive : handleCustomForceLive}
+              isForceLiveRunning={inputWorkflow === "preloaded" ? isForceLiveRunning : customIsForceLiveRunning}
+              selectedSceneId={activeSceneId}
+              selectedTileId={activeTileId}
+              onOpenReceipt={() => setReceiptModalOpen(true)}
+            />
           )}
         </div>
-      ) : (
-        <BenchmarkView />
-      )}
+      </div>
 
-      {/* Authoritative Cryptographic Trust Receipt Modal */}
+      {/* SCREEN 3: Authoritative Cryptographic Trust Receipt Modal */}
       {receiptModalOpen && activeReceiptId && (
         <ReceiptModal
           receiptId={activeReceiptId}
           onClose={() => setReceiptModalOpen(false)}
         />
       )}
+
+      {/* SCREEN 6: GeoTIFF Ingestion Modal */}
+      <IngestionModal
+        isOpen={ingestionModalOpen}
+        onClose={() => setIngestionModalOpen(false)}
+        onSceneValidated={handleCustomSceneValidated}
+      />
     </div>
   );
 }

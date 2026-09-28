@@ -31,7 +31,7 @@ if errorlevel 1 (
     echo [!] Dependencies not yet installed in: %PY_CMD%
     echo ===============================================================================
     echo This appears to be a fresh clone. Would you like to automatically create a
-    echo virtual environment (.venv) and install all dependencies?
+    echo virtual environment [.venv] and install all dependencies?
     echo.
     set "setup_choice="
     set /p setup_choice="Create .venv and install requirements? [Y/n, default=Y]: "
