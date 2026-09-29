@@ -12,6 +12,7 @@ Usage:
 import argparse
 import sys
 from pathlib import Path
+from typing import Optional
 
 # Setup project root
 project_root = Path(__file__).resolve().parent.parent
